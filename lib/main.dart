@@ -7,11 +7,10 @@ void main() async {
   runApp(const QuarryApp());
 }
 
-const ink = Color(0xFF202529);
-const muted = Color(0xFF747B80);
-const canvas = Color(0xFFF0F1F3);
-const green = Color(0xFF557B68);
-const softGreen = Color(0xFFE2ECE6);
+const Color ink = Color(0xFF202529);
+const Color muted = Color(0xFF747B80);
+const Color canvas = Color(0xFFF0F1F3);
+const Color green = Color(0xFF557B68);
 
 // ---------- helpers ----------
 double _n(dynamic v) => (v is num) ? v.toDouble() : double.tryParse('$v') ?? 0;
@@ -24,8 +23,8 @@ BoxDecoration softPanel({double radius = 20}) => BoxDecoration(
       color: canvas,
       borderRadius: BorderRadius.circular(radius),
       boxShadow: [
-        BoxShadow(color: Colors.white.withOpacity(0.95), offset: const Offset(-5, -5), blurRadius: 12),
-        BoxShadow(color: const Color(0xFFBFC3C8).withOpacity(0.65), offset: const Offset(5, 5), blurRadius: 13),
+        BoxShadow(color: Colors.white.withValues(alpha: .95), offset: const Offset(-5, -5), blurRadius: 12),
+        BoxShadow(color: const Color(0xFFBFC3C8).withValues(alpha: .65), offset: const Offset(5, 5), blurRadius: 13),
       ],
     );
 
@@ -36,7 +35,7 @@ InputDecoration deco(String label, {String? hint}) => InputDecoration(
       fillColor: canvas,
       contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: Colors.white.withOpacity(0.8))),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: Colors.white.withValues(alpha: .8))),
       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: green, width: 1.2)),
     );
 
@@ -118,7 +117,7 @@ class QuarryApp extends StatelessWidget {
 }
 
 class LocalStore {
-  static const _key = 'quarry_records_v1';
+  static const String _key = 'quarry_records_v1';
   static Future<List>> load() async {
     final p = await SharedPreferences.getInstance();
     final raw = p.getString(_key);
@@ -223,7 +222,7 @@ class _HomeShellState extends State<HomeShell> {
                 ? BoxDecoration(
                     color: ink,
                     borderRadius: BorderRadius.circular(17),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 9, offset: const Offset(3, 4))],
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .18), blurRadius: 9, offset: const Offset(3, 4))],
                   )
                 : null,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -789,7 +788,7 @@ class _ExpenseFormState extends State<ExpenseForm> {
 }
 
 // ---------- Attendance form ----------
-const workOptions = {
+const Map<String, double> workOptions = {
   'Day': 1.0,
   'Night': 1.0,
   'Half Day': 0.5,
