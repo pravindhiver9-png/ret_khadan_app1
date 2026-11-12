@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
@@ -24,8 +24,8 @@ BoxDecoration softPanel({double radius = 20}) => BoxDecoration(
       color: canvas,
       borderRadius: BorderRadius.circular(radius),
       boxShadow: [
-        BoxShadow(color: Colors.white.withValues(alpha: .95), offset: const Offset(-5, -5), blurRadius: 12),
-        BoxShadow(color: const Color(0xFFBFC3C8).withValues(alpha: .65), offset: const Offset(5, 5), blurRadius: 13),
+        BoxShadow(color: Colors.white.withOpacity(0.95), offset: const Offset(-5, -5), blurRadius: 12),
+        BoxShadow(color: const Color(0xFFBFC3C8).withOpacity(0.65), offset: const Offset(5, 5), blurRadius: 13),
       ],
     );
 
@@ -36,7 +36,7 @@ InputDecoration deco(String label, {String? hint}) => InputDecoration(
       fillColor: canvas,
       contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: Colors.white.withValues(alpha: .8))),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: Colors.white.withOpacity(0.8))),
       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: green, width: 1.2)),
     );
 
@@ -55,7 +55,7 @@ Widget field(String label, TextEditingController c,
 Widget dd(String label, String value, List<String> items, ValueChanged<String?> onChanged) => Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: DropdownButtonFormField<String>(
-        initialValue: value,
+        value: value,
         items: items.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
         onChanged: onChanged,
         decoration: deco(label),
@@ -223,7 +223,7 @@ class _HomeShellState extends State<HomeShell> {
                 ? BoxDecoration(
                     color: ink,
                     borderRadius: BorderRadius.circular(17),
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .18), blurRadius: 9, offset: const Offset(3, 4))],
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 9, offset: const Offset(3, 4))],
                   )
                 : null,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
