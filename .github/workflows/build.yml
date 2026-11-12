@@ -26,27 +26,41 @@ jobs:
       - name: Check Flutter Version
         run: flutter --version
 
-      # 4. Get existing dependencies
+      # 4. Check project files
+      - name: Check Project Structure
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Project files:"
+          ls -la
+          echo "Android folder:"
+          ls -la android || true
+          echo "Android app folder:"
+          ls -la android/app || true
+          echo "Gradle files:"
+          find android -maxdepth 4 -type f || true
+
+      # 5. Get dependencies
       - name: Get dependencies
         run: flutter pub get
 
-      # 5. Add new Material UI package
+      # 6. Add Material UI
       - name: Add Material UI
         run: flutter pub add material_ui
 
-      # 6. Migrate old Material imports
+      # 7. Migrate Material UI
       - name: Migrate Material UI
         run: dart fix --apply --code=migrate_design_widgets
 
-      # 7. Analyze project
+      # 8. Analyze project
       - name: Analyze
         run: flutter analyze
 
-      # 8. Build Android APK
+      # 9. Build Android APK
       - name: Build APK
         run: flutter build apk --release
 
-      # 9. Upload APK
+      # 10. Upload APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
