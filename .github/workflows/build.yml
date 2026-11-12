@@ -22,41 +22,50 @@ jobs:
           channel: stable
           cache: true
 
-      # 3. Check Flutter version
+      # 3. Flutter version
       - name: Check Flutter Version
         run: flutter --version
 
-      # 4. Check project files
-      - name: Check Project Structure
+      # 4. Check project root
+      - name: Check Project
         run: |
-          echo "Current directory:"
           pwd
-          echo "Project files:"
           ls -la
-          echo "Android folder:"
-          ls -la android || true
-          echo "Android app folder:"
-          ls -la android/app || true
-          echo "Gradle files:"
-          find android -maxdepth 4 -type f || true
+          test -f pubspec.yaml || {
+            echo "ERROR: pubspec.yaml not found"
+            exit 1
+          }
 
-      # 5. Get dependencies
+      # 5. Repair Android platform files
+      - name: Generate Android Platform
+        run: |
+          if [ ! -f android/app/build.gradle ]; then
+            echo "Android Gradle file missing."
+            echo "Generating Android platform files..."
+            flutter create --platforms=android .
+          else
+            echo "Android Gradle file already exists."
+          fi
+
+      # 6. Verify Gradle files
+      - name: Verify Android Files
+        run: |
+          echo "Android files:"
+          find android -maxdepth 4 -type f | sort
+          test -f android/app/build.gradle || {
+            echo "ERROR: android/app/build.gradle still missing"
+            exit 1
+          }
+
+      # 7. Get dependencies
       - name: Get dependencies
         run: flutter pub get
 
-      # 6. Add Material UI
-      - name: Add Material UI
-        run: flutter pub add material_ui
-
-      # 7. Migrate Material UI
-      - name: Migrate Material UI
-        run: dart fix --apply --code=migrate_design_widgets
-
-      # 8. Analyze project
+      # 8. Analyze
       - name: Analyze
         run: flutter analyze
 
-      # 9. Build Android APK
+      # 9. Build APK
       - name: Build APK
         run: flutter build apk --release
 
