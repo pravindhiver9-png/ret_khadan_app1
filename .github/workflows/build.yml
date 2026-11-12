@@ -23,30 +23,29 @@ jobs:
       - name: Check Flutter Version
         run: flutter --version
 
-      - name: Show Android Gradle Files
+      - name: Check Project Files
         run: |
-          echo "Current directory:"
-          pwd
+          echo "Project directory:"
+          ls -la
 
-          echo "Android folder:"
-          ls -la android
-
-          echo "Android app folder:"
-          ls -la android/app
-
-          echo "Searching Gradle files:"
-          find android -type f \( -name "build.gradle" -o -name "build.gradle.kts" \)
-
-      - name: Verify Gradle Configuration
-        run: |
-          if [ -f android/app/build.gradle.kts ]; then
-            echo "Found: android/app/build.gradle.kts"
-          elif [ -f android/app/build.gradle ]; then
-            echo "Found: android/app/build.gradle"
-          else
-            echo "Gradle file not found in app folder."
+          test -f pubspec.yaml || {
+            echo "ERROR: pubspec.yaml missing"
             exit 1
-          fi
+          }
+
+          test -f lib/main.dart || {
+            echo "ERROR: lib/main.dart missing"
+            exit 1
+          }
+
+      - name: Generate Android Platform
+        run: |
+          flutter create --platforms=android .
+
+      - name: Verify Android Platform
+        run: |
+          ls -la android
+          ls -la android/app
 
       - name: Get dependencies
         run: flutter pub get
