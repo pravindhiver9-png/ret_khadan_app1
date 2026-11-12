@@ -11,21 +11,26 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. Setup Flutter
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
 
+      # 3. Check Flutter version
       - name: Check Flutter Version
         run: flutter --version
 
+      # 4. Check project files
       - name: Check Project Files
         run: |
           echo "Project directory:"
+          pwd
           ls -la
 
           test -f pubspec.yaml || {
@@ -38,24 +43,39 @@ jobs:
             exit 1
           }
 
+      # 5. Generate Android platform if missing
       - name: Generate Android Platform
         run: |
-          flutter create --platforms=android .
+          if [ ! -f android/app/build.gradle ] && [ ! -f android/app/build.gradle.kts ]; then
+            flutter create --platforms=android .
+          else
+            echo "Android Gradle configuration found."
+          fi
 
-      - name: Verify Android Platform
+      # 6. Verify Android files
+      - name: Verify Android Files
         run: |
           ls -la android
           ls -la android/app
 
+          if [ ! -f android/app/build.gradle ] && [ ! -f android/app/build.gradle.kts ]; then
+            echo "ERROR: Gradle configuration missing"
+            exit 1
+          fi
+
+      # 7. Get dependencies
       - name: Get dependencies
         run: flutter pub get
 
+      # 8. Analyze project
       - name: Analyze
         run: flutter analyze
 
+      # 9. Build release APK
       - name: Build APK
         run: flutter build apk --release
 
+      # 10. Upload APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
