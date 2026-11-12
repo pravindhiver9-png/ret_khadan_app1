@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repository
+      # 1. Checkout
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -26,50 +26,33 @@ jobs:
       - name: Check Flutter Version
         run: flutter --version
 
-      # 4. Check project root
-      - name: Check Project
+      # 4. Check Android Gradle files
+      - name: Check Android Files
         run: |
-          pwd
-          ls -la
-          test -f pubspec.yaml || {
-            echo "ERROR: pubspec.yaml not found"
-            exit 1
-          }
+          echo "Checking Gradle files..."
 
-      # 5. Repair Android platform files
-      - name: Generate Android Platform
-        run: |
-          if [ ! -f android/app/build.gradle ]; then
-            echo "Android Gradle file missing."
-            echo "Generating Android platform files..."
-            flutter create --platforms=android .
+          if [ -f android/app/build.gradle.kts ]; then
+            echo "Kotlin Gradle file found."
+          elif [ -f android/app/build.gradle ]; then
+            echo "Groovy Gradle file found."
           else
-            echo "Android Gradle file already exists."
+            echo "ERROR: Android Gradle file missing."
+            exit 1
           fi
 
-      # 6. Verify Gradle files
-      - name: Verify Android Files
-        run: |
-          echo "Android files:"
-          find android -maxdepth 4 -type f | sort
-          test -f android/app/build.gradle || {
-            echo "ERROR: android/app/build.gradle still missing"
-            exit 1
-          }
-
-      # 7. Get dependencies
+      # 5. Get dependencies
       - name: Get dependencies
         run: flutter pub get
 
-      # 8. Analyze
+      # 6. Analyze
       - name: Analyze
         run: flutter analyze
 
-      # 9. Build APK
+      # 7. Build APK
       - name: Build APK
         run: flutter build apk --release
 
-      # 10. Upload APK
+      # 8. Upload APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
