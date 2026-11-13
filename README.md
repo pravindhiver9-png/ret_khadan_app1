@@ -1,28 +1,27 @@
 # रेत खदान प्रबंधन ऐप
 
-Flutter आधारित Android ऐप का शुरुआती GitHub प्रोजेक्ट।
+Flutter 3.50.0 के लिए प्रोजेक्ट। UI `material_ui` standalone package पर आधारित है; ऐप का रिकॉर्ड डेटा `shared_preferences` में फोन पर स्थानीय रूप से सेव होता है।
 
-## अभी शामिल
-- Minimal / soft-neomorphic UI
-- Dashboard (शुरुआत में सभी आंकड़े शून्य और कोई demo entry नहीं)
-- Hyva entry form: तारीख, समय, गाड़ी, टायर, मालिक, ड्राइवर, रेत, royalty, cash/online और बाकी
-- Daily expense form
-- Labour attendance with Day, Night, Half Day, Half Night, Full Day + Half Night, Day + Night, Half Day + Half Night, Holiday, Absent
-- Labour payment / advance entry
-- Local phone storage using SharedPreferences
-- Basic record list, edit description and delete
+## शामिल फाइलें
+- `lib/main.dart` — ऐप UI और मौजूदा रिकॉर्ड/फॉर्म फीचर्स
+- `pubspec.yaml` — Flutter और package dependencies
+- `test/widget_test.dart` — ऐप शुरू होने का widget test
+- `.github/workflows/build.yml` — GitHub Actions से analyze, test और release APK build
 
-## GitHub पर चलाने का तरीका
-1. इस ZIP को extract करके GitHub repository में upload करें।
-2. GitHub Actions में `Build Android APK` workflow चलाएं।
-3. Workflow के Artifacts में `ret-khadan-release-apk` डाउनलोड करें।
+## GitHub पर उपयोग
+ZIP को extract करके इसके अंदर की सभी फाइलें repository के root में upload करें (अर्थात `pubspec.yaml` सीधे repository root में हो)। फिर `main` branch पर push करें या Actions में **Build Android APK** को manually चलाएं।
 
-## Local build
+Workflow में Android platform files मौजूद न होने पर `flutter create --platforms=android .` चलाया जाता है।
+
+सफल build के बाद Actions run के Artifacts से `ret-khadan-release-apk` डाउनलोड करें।
+
+## Local commands
 ```bash
 flutter pub get
-flutter run
+flutter analyze
+flutter test
 flutter build apk --release
 ```
 
-## महत्वपूर्ण
-यह पहला working prototype है। डेटा अभी उसी फोन में लोकल सेव होता है। Multi-user cloud sync, full Excel/PDF export, master labour list, wage-rate history, full record editing, backup/restore और advanced reports अगले चरण में जोड़ने होंगे।
+## डेटा
+रिकॉर्ड SharedPreferences में इसी फोन पर सेव होते हैं। इस build में cloud sync, full Excel/PDF export, backup/restore और multi-device sync शामिल नहीं हैं।
