@@ -8,15 +8,15 @@ import 'export_service.dart';
 class KharchHubScreen extends StatelessWidget {
   const KharchHubScreen({super.key});
 
-  static const List> categories = >[
-    <String, String>{'key': 'JCB', 'hi': '1. JCB खर्च', 'en': '1. JCB Expense'},
-    <String, String>{'key': 'Diesel', 'hi': '2. Diesel खर्च', 'en': '2. Diesel Expense'},
-    <String, String>{'key': 'Media', 'hi': '3. Media खर्च', 'en': '3. Media Expense'},
-    <String, String>{'key': 'Khana', 'hi': '4. Khana खर्च', 'en': '4. Food Expense'},
-    <String, String>{'key': 'Besharam', 'hi': '5. बेशरम वाला', 'en': '5. Besharam Wala'},
-    <String, String>{'key': 'Majdoori', 'hi': '6. मजदूरी', 'en': '6. Labour / Majdoori'},
-    <String, String>{'key': 'GaonFund', 'hi': '7. गाँव फंड', 'en': '7. Village Fund'},
-    <String, String>{'key': 'Other', 'hi': '8. अन्य खर्च', 'en': '8. Other Expense'},
+  static final List> categories = [
+    {'key': 'JCB', 'hi': '1. JCB खर्च', 'en': '1. JCB Expense'},
+    {'key': 'Diesel', 'hi': '2. Diesel खर्च', 'en': '2. Diesel Expense'},
+    {'key': 'Media', 'hi': '3. Media खर्च', 'en': '3. Media Expense'},
+    {'key': 'Khana', 'hi': '4. Khana खर्च', 'en': '4. Food Expense'},
+    {'key': 'Besharam', 'hi': '5. बेशरम वाला', 'en': '5. Besharam Wala'},
+    {'key': 'Majdoori', 'hi': '6. मजदूरी', 'en': '6. Labour / Majdoori'},
+    {'key': 'GaonFund', 'hi': '7. गाँव फंड', 'en': '7. Village Fund'},
+    {'key': 'Other', 'hi': '8. अन्य खर्च', 'en': '8. Other Expense'},
   ];
 
   @override
@@ -128,7 +128,7 @@ class KharchCategoryScreen extends StatefulWidget {
 }
 
 class _KharchCategoryScreenState extends State<KharchCategoryScreen> {
-  List> entries = >[];
+  List> entries = [];
 
   @override
   void initState() {
@@ -329,8 +329,8 @@ class _KharchFormScreenState extends State<KharchFormScreen> {
   final _h2Ctrl = TextEditingController();
 
   int _mediaCount = 1;
-  final List<TextEditingController> _mediaNames = <TextEditingController>[TextEditingController()];
-  final List<TextEditingController> _mediaChannels = <TextEditingController>[TextEditingController()];
+  final List<TextEditingController> _mediaNames = [TextEditingController()];
+  final List<TextEditingController> _mediaChannels = [TextEditingController()];
 
   @override
   void initState() {
@@ -404,7 +404,7 @@ class _KharchFormScreenState extends State<KharchFormScreen> {
     } else if (widget.categoryKey == 'Media') {
       extraMap['people'] = List.generate(
         _mediaCount,
-        (i) => <String, String>{
+        (i) => {
           'name': _mediaNames[i].text.trim(),
           'channel': _mediaChannels[i].text.trim(),
         },
@@ -518,7 +518,7 @@ class _KharchFormScreenState extends State<KharchFormScreen> {
                   filled: true,
                   fillColor: AppColors.white,
                 ),
-                items: <String>['JCB Service', 'Operator Personal', 'JCB किराया']
+                items: ['JCB Service', 'Operator Personal', 'JCB किराया']
                     .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                     .toList(),
                 onChanged: (v) => setState(() => _jcbSubType = v!),
@@ -531,7 +531,7 @@ class _KharchFormScreenState extends State<KharchFormScreen> {
                   filled: true,
                   fillColor: AppColors.white,
                 ),
-                items: <String>['JCB मालिक', 'ऑपरेटर', 'हेल्पर']
+                items: ['JCB मालिक', 'ऑपरेटर', 'हेल्पर']
                     .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                     .toList(),
                 onChanged: (v) => setState(() => _jcbPaidTo = v!),
@@ -647,7 +647,7 @@ class CombinedExpenseStatementScreen extends StatefulWidget {
 }
 
 class _CombinedExpenseStatementScreenState extends State<CombinedExpenseStatementScreen> {
-  Map<String, List>> groupedByDate = <String, List>>{};
+  Map<String, List>> groupedByDate = {};
 
   @override
   void initState() {
@@ -661,7 +661,7 @@ class _CombinedExpenseStatementScreenState extends State<CombinedExpenseStatemen
     final map = <String, List>>{};
     for (final r in rows) {
       final d = r['entry_date'].toString();
-      map.putIfAbsent(d, () => >[]).add(r);
+      map.putIfAbsent(d, () => []).add(r);
     }
     setState(() => groupedByDate = map);
   }
@@ -718,7 +718,7 @@ class BesharamBalanceStatementScreen extends StatefulWidget {
 }
 
 class _BesharamBalanceStatementScreenState extends State<BesharamBalanceStatementScreen> {
-  List> items = >[];
+  List> items = [];
 
   @override
   void initState() {
@@ -764,7 +764,7 @@ class _BesharamBalanceStatementScreenState extends State<BesharamBalanceStatemen
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
               value: mode,
-              items: <String>['Cash', 'Online']
+              items: ['Cash', 'Online']
                   .map((m) => DropdownMenuItem(value: m, child: Text(m)))
                   .toList(),
               onChanged: (v) => mode = v!,
