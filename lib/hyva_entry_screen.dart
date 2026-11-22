@@ -21,7 +21,6 @@ class _HyvaEntryScreenState extends State<HyvaEntryScreen> {
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _selectedTime = TimeOfDay.now();
 
-  // Controllers
   final _loadingRateCtrl = TextEditingController();
   final _khadanCtrl = TextEditingController();
   final _vehicleCtrl = TextEditingController();
@@ -35,7 +34,6 @@ class _HyvaEntryScreenState extends State<HyvaEntryScreen> {
   final _dalalCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
 
-  // Royalty Sub-form Controllers
   bool _royaltyRequired = false;
   int _nextRoyaltyKramank = 1;
   TimeOfDay _royaltyTime = TimeOfDay.now();
@@ -45,18 +43,17 @@ class _HyvaEntryScreenState extends State<HyvaEntryScreen> {
   final _royaltyReceiverCtrl = TextEditingController();
   String? _royaltyPhotoPath;
 
-  // Selections & Saved Lists
-  String _paymentMode = 'Cash'; // Cash | Online
-  String _paymentStatus = 'Paid'; // Paid | Partial | Balance | Free
+  String _paymentMode = 'Cash';
+  String _paymentStatus = 'Paid';
   String? _hyvaPhotoPath;
   double _currentDailyRate = 0;
 
-  List<String> _savedKhadans = [];
-  List> _savedVehicles = [];
-  List> _vehicleDrivers = [];
-  List<String> _savedDalals = [];
-  List<String> _savedDestinations = [];
-  List<String> _savedCutters = [];
+  List<String> _savedKhadans = <String>[];
+  List> _savedVehicles = >[];
+  List> _vehicleDrivers = >[];
+  List<String> _savedDalals = <String>[];
+  List<String> _savedDestinations = <String>[];
+  List<String> _savedCutters = <String>[];
 
   @override
   void initState() {
@@ -66,19 +63,14 @@ class _HyvaEntryScreenState extends State<HyvaEntryScreen> {
 
   Future<void> _initData() async {
     final db = await AppDatabase.instance.database;
-
-    // Load Master Lists
     _savedKhadans = await _getMasterList(db, 'khadan');
     _savedDalals = await _getMasterList(db, 'dalal');
     _savedDestinations = await _getMasterList(db, 'destination');
     _savedCutters = await _getMasterList(db, 'cutter');
-
     _savedVehicles = await db.query('vehicles', orderBy: 'vehicle_no ASC');
 
-    // Load Daily Loading Rate for selected date
     await _loadDailyRateForDate(_selectedDate);
 
-    // Load Next Royalty Kramank
     final maxRes = await db.rawQuery(
       'SELECT COALESCE(MAX(royalty_kramank), 0) + 1 as next_no FROM royalty_entries',
     );
@@ -147,7 +139,6 @@ class _HyvaEntryScreenState extends State<HyvaEntryScreen> {
     } else if (_paymentStatus == 'Balance') {
       _balanceCtrl.text = amt.toStringAsFixed(0);
     } else if (_paymentStatus == 'Partial') {
-      // If user edits received/balance, keep valid
       final currentBal = double.tryParse(_balanceCtrl.text.trim()) ?? 0;
       if (currentBal > amt) {
         _balanceCtrl.text = amt.toStringAsFixed(0);
@@ -171,12 +162,10 @@ class _HyvaEntryScreenState extends State<HyvaEntryScreen> {
     return savedFile.path;
   }
 
-  /// Loading Rate Change Rule: Only This Entry vs Always
   Future<bool> _confirmLoadingRateChangeIfNeeded(double enteredRate) async {
     final db = await AppDatabase.instance.database;
     final dateKey = DateFormat('yyyy-MM-dd').format(_selectedDate);
 
-    // First entry of the day: save as today's daily rate automatically
     if (_currentDailyRate == 0 && enteredRate > 0) {
       await db.insert(
         'daily_rates',
@@ -232,7 +221,6 @@ class _HyvaEntryScreenState extends State<HyvaEntryScreen> {
     return true;
   }
 
-  /// Step 21-23: Preview -> Edit -> Save
   Future<void> _openPreviewAndSave() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -355,7 +343,6 @@ class _HyvaEntryScreenState extends State<HyvaEntryScreen> {
     final mobileNo = _mobileCtrl.text.trim();
     final khadanName = _khadanCtrl.text.trim();
 
-    // Save/Update Master Data for future auto-fill
     await _saveMasterItem(db, 'khadan', khadanName);
     await _saveMasterItem(db, 'dalal', _dalalCtrl.text);
 
@@ -385,7 +372,6 @@ class _HyvaEntryScreenState extends State<HyvaEntryScreen> {
       );
     }
 
-    // Insert Hyva Entry
     final hyvaId = await db.insert('hyva_entries', {
       'entry_date': dateStr,
       'entry_time': timeStr,
@@ -406,7 +392,6 @@ class _HyvaEntryScreenState extends State<HyvaEntryScreen> {
       'photo_path': _hyvaPhotoPath,
     });
 
-    // If Royalty Checked, create Linked Royalty Entry
     if (_royaltyRequired && mounted) {
       await _saveMasterItem(db, 'destination', _destinationCtrl.text);
       await _saveMasterItem(db, 'cutter', _royaltyCutterCtrl.text);
@@ -461,7 +446,6 @@ class _HyvaEntryScreenState extends State<HyvaEntryScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // 1. Date & Time
             _sectionCard([
               Text(
                 lang.tr('1. तारीख और समय', '1. Date & Time'),
@@ -508,8 +492,6 @@ class _HyvaEntryScreenState extends State<HyvaEntryScreen> {
                 ],
               ),
             ]),
-
-            // 2. Khadan Name & Loading Rate
             _sectionCard([
               _autocompleteInput(
                 controller: _khadanCtrl,
@@ -525,8 +507,6 @@ class _HyvaEntryScreenState extends State<HyvaEntryScreen> {
                 required: true,
               ),
             ]),
-
-            // 3, 4, 5, 6. Vehicle, Owner, Driver, Mobile
             _sectionCard([
               _autocompleteInput(
                 controller: _vehicleCtrl,
@@ -565,8 +545,6 @@ class _HyvaEntryScreenState extends State<HyvaEntryScreen> {
                 required: true,
               ),
             ]),
-
-            // 7, 8, 9. Final Amount, Royalty Checkbox & Royalty Amount
             _sectionCard([
               _textInput(
                 controller: _amountCtrl,
@@ -667,8 +645,6 @@ class _HyvaEntryScreenState extends State<HyvaEntryScreen> {
                 keyboardType: TextInputType.number,
               ),
             ]),
-
-            // 10, 11, 12. Payment Mode & Status
             _sectionCard([
               Text(
                 lang.tr('भुगतान का माध्यम (Payment Mode)', 'Payment Mode'),
@@ -680,7 +656,7 @@ class _HyvaEntryScreenState extends State<HyvaEntryScreen> {
                   ButtonSegment(value: 'Cash', label: Text('Cash')),
                   ButtonSegment(value: 'Online', label: Text('Online')),
                 ],
-                selected: {_paymentMode},
+                selected: <String>{_paymentMode},
                 onSelectionChanged: (s) => setState(() => _paymentMode = s.first),
               ),
               if (_paymentMode == 'Online') ...[
@@ -699,7 +675,7 @@ class _HyvaEntryScreenState extends State<HyvaEntryScreen> {
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
-                children: ['Paid', 'Partial', 'Balance', 'Free'].map((status) {
+                children: <String>['Paid', 'Partial', 'Balance', 'Free'].map((status) {
                   return ChoiceChip(
                     label: Text(status),
                     selected: _paymentStatus == status,
@@ -740,8 +716,6 @@ class _HyvaEntryScreenState extends State<HyvaEntryScreen> {
                 ),
               ],
             ]),
-
-            // 13, 14, 15. Dalal, Note, Hyva Photo
             _sectionCard([
               _autocompleteInput(
                 controller: _dalalCtrl,
@@ -765,7 +739,6 @@ class _HyvaEntryScreenState extends State<HyvaEntryScreen> {
                 prefix: 'hyva',
               ),
             ]),
-
             const SizedBox(height: 12),
             SizedBox(
               height: 50,
