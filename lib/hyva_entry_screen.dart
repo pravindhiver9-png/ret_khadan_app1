@@ -8,7 +8,7 @@ import 'package:sqflite/sqflite.dart';
 import 'main.dart';
 
 class HyvaEntryScreen extends StatefulWidget {
-  final Map<String, dynamic>? existingEntry;
+  final RowMap? existingEntry;
   const HyvaEntryScreen({super.key, this.existingEntry});
 
   @override
@@ -49,8 +49,8 @@ class _HyvaEntryScreenState extends State<HyvaEntryScreen> {
   double _currentDailyRate = 0;
 
   List<String> _savedKhadans = <String>[];
-  List> _savedVehicles = >[];
-  List> _vehicleDrivers = >[];
+  RowList _savedVehicles = <RowMap>[];
+  RowList _vehicleDrivers = <RowMap>[];
   List<String> _savedDalals = <String>[];
   List<String> _savedDestinations = <String>[];
   List<String> _savedCutters = <String>[];
@@ -264,7 +264,10 @@ class _HyvaEntryScreenState extends State<HyvaEntryScreen> {
               _previewRow(lang.tr('अंतिम तय Amount', 'Final Amount'), '₹${amt.toStringAsFixed(0)}'),
               _previewRow(lang.tr('Royalty Amount', 'Royalty Amount'), '₹${royaltyAmt.toStringAsFixed(0)}'),
               _previewRow(lang.tr('भुगतान माध्यम', 'Payment Mode'), _paymentMode),
-              _previewRow(lang.tr('स्थिति (Status)', 'Status'), '$_paymentStatus (Balance: ₹${balAmt.toStringAsFixed(0)})'),
+              _previewRow(
+                lang.tr('स्थिति (Status)', 'Status'),
+                '$_paymentStatus (Balance: ₹${balAmt.toStringAsFixed(0)})',
+              ),
               if (_dalalCtrl.text.isNotEmpty)
                 _previewRow(lang.tr('दलाल', 'Dalal'), _dalalCtrl.text),
               if (_royaltyRequired)
@@ -675,7 +678,7 @@ class _HyvaEntryScreenState extends State<HyvaEntryScreen> {
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
-                children: <String>['Paid', 'Partial', 'Balance', 'Free'].map((status) {
+                children: ['Paid', 'Partial', 'Balance', 'Free'].map((status) {
                   return ChoiceChip(
                     label: Text(status),
                     selected: _paymentStatus == status,
