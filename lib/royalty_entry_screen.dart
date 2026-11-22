@@ -34,12 +34,12 @@ class _RoyaltyEntryScreenState extends State<RoyaltyEntryScreen> {
   final _amountCtrl = TextEditingController();
   String? _photoPath;
 
-  List<String> _savedKhadans = [];
-  List> _savedVehicles = [];
-  List> _vehicleDrivers = [];
-  List<String> _savedDestinations = [];
-  List<String> _savedCutters = [];
-  List<String> _savedReceivers = [];
+  List<String> _savedKhadans = <String>[];
+  List> _savedVehicles = >[];
+  List> _vehicleDrivers = >[];
+  List<String> _savedDestinations = <String>[];
+  List<String> _savedCutters = <String>[];
+  List<String> _savedReceivers = <String>[];
 
   @override
   void initState() {
