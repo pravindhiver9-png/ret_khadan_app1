@@ -1,1748 +1,861 @@
-import 'dart:convert';
-
-import 'package:material_ui/material_ui.dart';
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart';
+
+import 'hyva_entry_screen.dart';
+import 'royalty_entry_screen.dart';
+import 'kharch_module_screen.dart';
+import 'lists_and_statements_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const QuarryApp());
+  await AppDatabase.instance.database;
+  await BackupService.runDailyAutoBackupIfNeeded();
+  runApp(const RetKhadanApp());
 }
 
-const Color ink = Color(0xFF202529);
-const Color muted = Color(0xFF747B80);
-const Color canvas = Color(0xFFF0F1F3);
-const Color green = Color(0xFF557B68);
-
-double _n(dynamic value) {
-  if (value is num) return value.toDouble();
-  return double.tryParse('$value') ?? 0;
+class AppColors {
+  static const sandBeige = Color(0xFFF3E9D7);
+  static const desertSand = Color(0xFFE3D1B3);
+  static const naturalSand = Color(0xFFC5A77D);
+  static const earthBrown = Color(0xFF8B6B48);
+  static const charcoal = Color(0xFF45413A);
+  static const white = Color(0xFFFFFFFF);
 }
 
-String money(double value) => '₹${value.toStringAsFixed(0)}';
+class LanguageProvider extends ChangeNotifier {
+  bool isHindi = true;
+  String tr(String hi, String en) => isHindi ? hi : en;
 
-String fmt(DateTime date) =>
-    '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-
-String today() => fmt(DateTime.now());
-
-BoxDecoration softPanel({double radius = 20}) => BoxDecoration(
-      color: canvas,
-      borderRadius: BorderRadius.circular(radius),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.white.withValues(alpha: .95),
-          offset: const Offset(-5, -5),
-          blurRadius: 12,
-        ),
-        BoxShadow(
-          color: const Color(0xFFBFC3C8).withValues(alpha: .65),
-          offset: const Offset(5, 5),
-          blurRadius: 13,
-        ),
-      ],
-    );
-
-InputDecoration deco(String label, {String? hint}) => InputDecoration(
-      labelText: label,
-      hintText: hint,
-      filled: true,
-      fillColor: canvas,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(15),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(15),
-        borderSide: BorderSide(
-          color: Colors.white.withValues(alpha: .8),
-        ),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: green, width: 1.2),
-      ),
-    );
-
-Widget field(
-  String label,
-  TextEditingController controller, {
-  TextInputType type = TextInputType.text,
-  String? hint,
-  ValueChanged<String>? onChanged,
-}) {
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: TextField(
-      controller: controller,
-      keyboardType: type,
-      onChanged: onChanged,
-      decoration: deco(label, hint: hint),
-    ),
-  );
+  void toggleLanguage() {
+    isHindi = !isHindi;
+    notifyListeners();
+  }
 }
 
-Widget dd(
-  String label,
-  String value,
-  List<String> items,
-  ValueChanged<String?> onChanged,
-) {
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: DropdownButtonFormField<String>(
-      initialValue: value,
-      items: items
-          .map((item) => DropdownMenuItem<String>(
-                value: item,
-                child: Text(item),
-              ))
-          .toList(),
-      onChanged: onChanged,
-      decoration: deco(label),
-    ),
-  );
-}
+final lang = LanguageProvider();
 
-Widget dateButton(
-  BuildContext context,
-  DateTime date,
-  ValueChanged<DateTime> onPick,
-) {
-  return OutlinedButton.icon(
-    onPressed: () async {
-      final picked = await showDatePicker(
-        context: context,
-        initialDate: date,
-        firstDate: DateTime(2020),
-        lastDate: DateTime(2100),
-      );
-      if (picked != null) onPick(picked);
-    },
-    icon: const Icon(Icons.calendar_today),
-    label: Text(fmt(date)),
-  );
-}
-
-Widget saveButton(BuildContext context, VoidCallback onTap) {
-  return SizedBox(
-    width: double.infinity,
-    height: 50,
-    child: ElevatedButton.icon(
-      onPressed: onTap,
-      icon: const Icon(Icons.check_rounded),
-      label: const Text('सेव करें'),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: ink,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-      ),
-    ),
-  );
-}
-
-Widget rowText(String title, String value) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(
-      children: [
-        Expanded(
-          child: Text(title, style: const TextStyle(color: muted)),
-        ),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
-      ],
-    ),
-  );
-}
-
-void snack(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(message)),
-  );
-}
-
-// -----------------------------------------------------------------------------
-// APP
-// -----------------------------------------------------------------------------
-
-class QuarryApp extends StatelessWidget {
-  const QuarryApp({super.key});
+class RetKhadanApp extends StatelessWidget {
+  const RetKhadanApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'रेत खदान',
-      theme: ThemeData(
-        useMaterial3: true,
-        scaffoldBackgroundColor: canvas,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: green,
-          surface: canvas,
-        ),
-        fontFamily: 'Roboto',
-        appBarTheme: const AppBarTheme(
-          backgroundColor: canvas,
-          foregroundColor: ink,
-          elevation: 0,
-        ),
-      ),
-      home: const HomeShell(),
+    return AnimatedBuilder(
+      animation: lang,
+      builder: (context, _) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'Ret Khadan Management',
+          theme: ThemeData(
+            fontFamily: 'NotoDevanagari',
+            scaffoldBackgroundColor: AppColors.sandBeige,
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: AppColors.earthBrown,
+              primary: AppColors.earthBrown,
+              surface: AppColors.desertSand,
+              onSurface: AppColors.charcoal,
+            ),
+            useMaterial3: true,
+          ),
+          home: const MpinGateScreen(),
+        );
+      },
     );
   }
 }
 
-class LocalStore {
-  static const String _key = 'quarry_records_v1';
+class AppDatabase {
+  AppDatabase._();
+  static final AppDatabase instance = AppDatabase._();
+  static Database? _db;
 
-  static Future<List<Map<String, dynamic>>> load() async {
+  Future<Database> get database async {
+    if (_db != null) return _db!;
+    final dbPath = await getDatabasesPath();
+    final path = p.join(dbPath, 'ret_khadan.db');
+
+    _db = await openDatabase(
+      path,
+      version: 1,
+      onCreate: (db, version) async {
+        await db.execute('''
+          CREATE TABLE master_lists (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            list_type TEXT NOT NULL,
+            item_value TEXT NOT NULL,
+            UNIQUE(list_type, item_value)
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE daily_rates (
+            date_key TEXT PRIMARY KEY,
+            loading_rate REAL NOT NULL
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE vehicles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            vehicle_no TEXT UNIQUE NOT NULL,
+            owner_name TEXT NOT NULL
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE drivers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            vehicle_no TEXT NOT NULL,
+            driver_name TEXT NOT NULL,
+            mobile_no TEXT NOT NULL
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE jcb_masters (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            jcb_name TEXT UNIQUE NOT NULL,
+            owner_name TEXT NOT NULL,
+            op1 TEXT,
+            op2 TEXT,
+            op3 TEXT,
+            helper1 TEXT,
+            helper2 TEXT
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE hyva_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            entry_date TEXT NOT NULL,
+            entry_time TEXT NOT NULL,
+            loading_rate REAL NOT NULL,
+            khadan_name TEXT NOT NULL,
+            vehicle_no TEXT NOT NULL,
+            owner_name TEXT NOT NULL,
+            driver_name TEXT NOT NULL,
+            mobile_no TEXT NOT NULL,
+            amount REAL NOT NULL,
+            royalty_amount REAL NOT NULL DEFAULT 0,
+            payment_mode TEXT NOT NULL,
+            online_receiver TEXT,
+            payment_status TEXT NOT NULL,
+            balance_amount REAL NOT NULL DEFAULT 0,
+            dalal_name TEXT,
+            note TEXT,
+            photo_path TEXT,
+            royalty_id INTEGER
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE royalty_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            royalty_kramank INTEGER NOT NULL,
+            entry_date TEXT NOT NULL,
+            entry_time TEXT NOT NULL,
+            khadan_name TEXT NOT NULL,
+            ghan_meter REAL NOT NULL,
+            destination TEXT NOT NULL,
+            royalty_cutter TEXT NOT NULL,
+            royalty_receiver TEXT,
+            vehicle_no TEXT NOT NULL,
+            owner_name TEXT NOT NULL,
+            driver_name TEXT NOT NULL,
+            mobile_no TEXT NOT NULL,
+            amount REAL NOT NULL,
+            photo_path TEXT,
+            hyva_entry_id INTEGER
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE expenses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category TEXT NOT NULL,
+            entry_date TEXT NOT NULL,
+            entry_time TEXT,
+            amount REAL NOT NULL,
+            paid_amount REAL NOT NULL DEFAULT 0,
+            balance_amount REAL NOT NULL DEFAULT 0,
+            payment_status TEXT,
+            paid_date TEXT,
+            vehicle_no TEXT,
+            owner_name TEXT,
+            person_name TEXT,
+            village_name TEXT,
+            designation TEXT,
+            sub_type TEXT,
+            quantity REAL,
+            extra_json TEXT
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE besharam_payments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            expense_id INTEGER NOT NULL,
+            vehicle_no TEXT NOT NULL,
+            owner_name TEXT NOT NULL,
+            paid_amount REAL NOT NULL,
+            payment_date TEXT NOT NULL,
+            payment_mode TEXT NOT NULL,
+            note TEXT
+          )
+        ''');
+      },
+    );
+    return _db!;
+  }
+}
+
+class BackupService {
+  static const _lastBackupKey = 'last_auto_backup_date';
+
+  static Future<File?> runDailyAutoBackupIfNeeded() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key);
+    final todayKey = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final lastDate = prefs.getString(_lastBackupKey);
+    if (lastDate == todayKey) return null;
+    return createBackupNow(todayKey: todayKey);
+  }
 
-    if (raw == null || raw.isEmpty) {
-      return <Map<String, dynamic>>[];
+  static Future<File> createBackupNow({String? todayKey}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = todayKey ?? DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final dbPath = await getDatabasesPath();
+    final sourceFile = File(p.join(dbPath, 'ret_khadan.db'));
+
+    final appDocDir = await getApplicationDocumentsDirectory();
+    final backupDir = Directory(p.join(appDocDir.path, 'AutoBackups'));
+    if (!await backupDir.exists()) {
+      await backupDir.create(recursive: true);
     }
 
-    final decoded = jsonDecode(raw) as List<dynamic>;
-    return decoded
-        .map(
-          (item) => Map<String, dynamic>.from(item as Map),
-        )
-        .toList();
+    final backupFile = File(p.join(backupDir.path, 'ret_khadan_backup_$key.db'));
+    if (await sourceFile.exists()) {
+      await sourceFile.copy(backupFile.path);
+    }
+    await prefs.setString(_lastBackupKey, key);
+    return backupFile;
   }
 
-  static Future<void> save(List<Map<String, dynamic>> rows) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_key, jsonEncode(rows));
+  static Future<List<File>> listBackups() async {
+    final appDocDir = await getApplicationDocumentsDirectory();
+    final backupDir = Directory(p.join(appDocDir.path, 'AutoBackups'));
+    if (!await backupDir.exists()) return [];
+    final files = backupDir.listSync().whereType<File>().toList();
+    files.sort((a, b) => b.path.compareTo(a.path));
+    return files;
+  }
+
+  static Future<void> restoreFromBackup(File backupFile) async {
+    final dbPath = await getDatabasesPath();
+    final targetPath = p.join(dbPath, 'ret_khadan.db');
+    await backupFile.copy(targetPath);
   }
 }
 
-class HomeShell extends StatefulWidget {
-  const HomeShell({super.key});
+class MpinGateScreen extends StatefulWidget {
+  const MpinGateScreen({super.key});
 
   @override
-  State<HomeShell> createState() => _HomeShellState();
+  State<MpinGateScreen> createState() => _MpinGateScreenState();
 }
 
-class _HomeShellState extends State<HomeShell> {
-  int tab = 0;
-  bool loading = true;
-  List<Map<String, dynamic>> records = [];
+class _MpinGateScreenState extends State<MpinGateScreen> {
+  static const _mpinKey = 'saved_user_mpin';
+  String? _savedMpin;
+  String _firstEnteredPin = '';
+  bool _isConfirmingNewPin = false;
+  final TextEditingController _pinController = TextEditingController();
+  String? _errorText;
 
   @override
   void initState() {
     super.initState();
-    _refresh();
+    _loadMpin();
   }
 
-  Future<void> _refresh() async {
-    final data = await LocalStore.load();
-    if (!mounted) return;
-
+  Future<void> _loadMpin() async {
+    final prefs = await SharedPreferences.getInstance();
     setState(() {
-      records = data;
-      loading = false;
+      _savedMpin = prefs.getString(_mpinKey);
     });
   }
 
-  Future<void> _save(Map<String, dynamic> row) async {
-    setState(() => records.insert(0, row));
-    await LocalStore.save(records);
-  }
-
-  Future<void> _delete(Map<String, dynamic> row) async {
-    setState(() => records.remove(row));
-    await LocalStore.save(records);
-  }
-
-  Iterable<Map<String, dynamic>> _of(String type) =>
-      records.where((row) => row['type'] == type);
-
-  double get sales =>
-      _of('hyva').fold(0.0, (sum, row) => sum + _n(row['total']));
-
-  double get received =>
-      _of('hyva').fold(0.0, (sum, row) => sum + _n(row['paid']));
-
-  double get pending =>
-      (sales - received).clamp(0, double.infinity).toDouble();
-
-  double get wages =>
-      _of('attendance').fold(0.0, (sum, row) => sum + _n(row['wage']));
-
-  double get otherExpenses =>
-      _of('expense').fold(0.0, (sum, row) => sum + _n(row['amount']));
-
-  double get expenses => wages + otherExpenses;
-
-  int get trips => _of('hyva').length;
-
-  int get todayTrips =>
-      _of('hyva').where((row) => row['date'] == today()).length;
-
-  @override
-  Widget build(BuildContext context) {
-    final pages = <Widget>[
-      _dashboard(),
-      _recordList(
-        'Hyva एंट्री',
-        Icons.local_shipping,
-        ['hyva'],
-        FloatingActionButton.extended(
-          backgroundColor: ink,
-          foregroundColor: Colors.white,
-          onPressed: _hyvaForm,
-          icon: const Icon(Icons.add),
-          label: const Text('नई एंट्री'),
-        ),
-      ),
-      _recordList(
-        'दैनिक खर्च',
-        Icons.receipt_long,
-        ['expense', 'attendance'],
-        FloatingActionButton.extended(
-          backgroundColor: ink,
-          foregroundColor: Colors.white,
-          onPressed: _expenseForm,
-          icon: const Icon(Icons.add),
-          label: const Text('खर्च जोड़ें'),
-        ),
-      ),
-      _accounts(),
-      _more(),
-    ];
-
-    return Scaffold(
-      body: SafeArea(
-        child: loading
-            ? const Center(child: CircularProgressIndicator())
-            : pages[tab],
-      ),
-      bottomNavigationBar: _bottomBar(),
-    );
-  }
-
-  Widget _bottomBar() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-      padding: const EdgeInsets.symmetric(vertical: 9),
-      decoration: softPanel(radius: 28),
-      child: Row(
-        children: [
-          _nav('होम', Icons.home_rounded, 0),
-          _nav('एंट्री', Icons.local_shipping_rounded, 1),
-          _nav('खर्च', Icons.receipt_long_rounded, 2),
-          _nav('हिसाब', Icons.menu_book_rounded, 3),
-          _nav('मेन्यू', Icons.menu_rounded, 4),
-        ],
-      ),
-    );
-  }
-
-  Widget _nav(String label, IconData icon, int index) {
-    return Expanded(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: () => setState(() => tab = index),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: tab == index
-              ? BoxDecoration(
-                  color: ink,
-                  borderRadius: BorderRadius.circular(17),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: .18),
-                      blurRadius: 9,
-                      offset: const Offset(3, 4),
-                    ),
-                  ],
-                )
-              : null,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 21,
-                color: tab == index ? Colors.white : ink,
-              ),
-              const SizedBox(height: 3),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight:
-                      tab == index ? FontWeight.w600 : FontWeight.w400,
-                  color: tab == index ? Colors.white : muted,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _dashboard() {
-    return RefreshIndicator(
-      onRefresh: _refresh,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 14, 18, 22),
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: softPanel(radius: 18),
-                child: const Icon(
-                  Icons.landscape_rounded,
-                  size: 30,
-                  color: ink,
-                ),
-              ),
-              const SizedBox(width: 13),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'श्री गणेश रेत खदान',
-                      style: TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.w600,
-                        color: ink,
-                      ),
-                    ),
-                    SizedBox(height: 3),
-                    Text(
-                      'खदान प्रबंधन प्रणाली',
-                      style: TextStyle(color: muted, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                decoration: softPanel(radius: 22),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.calendar_today_rounded, size: 16),
-                    SizedBox(width: 7),
-                    Text('आज', style: TextStyle(fontWeight: FontWeight.w500)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 22),
-          Row(
-            children: [
-              const Icon(Icons.event, size: 18, color: muted),
-              const SizedBox(width: 8),
-              Text(
-                today(),
-                style: const TextStyle(color: muted, fontSize: 14),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.55,
-            children: [
-              _metric(
-                Icons.local_shipping_rounded,
-                '$todayTrips',
-                'आज की Hyva एंट्री',
-              ),
-              _metric(Icons.grain_rounded, money(sales), 'कुल बिक्री'),
-              _metric(
-                Icons.local_gas_station_rounded,
-                money(expenses),
-                'कुल खर्च',
-              ),
-              _metric(
-                Icons.trending_up_rounded,
-                money(sales - expenses),
-                'शुद्ध बचत',
-              ),
-            ],
-          ),
-          const SizedBox(height: 25),
-          _sectionTitle(
-            'त्वरित कार्यवाही',
-            'सभी देखें',
-            () => setState(() => tab = 4),
-          ),
-          const SizedBox(height: 12),
-          GridView.count(
-            crossAxisCount: 4,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 9,
-            mainAxisSpacing: 9,
-            childAspectRatio: .82,
-            children: [
-              _quick(Icons.local_shipping_rounded, 'नई Hyva\nएंट्री', _hyvaForm),
-              _quick(Icons.groups_rounded, 'मजदूर\nहाजिरी', _attendance),
-              _quick(Icons.receipt_long_rounded, 'खर्च\nजोड़ें', _expenseForm),
-              _quick(
-                Icons.assessment_rounded,
-                'रिपोर्ट\nदेखें',
-                () => setState(() => tab = 3),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          _sectionTitle(
-            'आज की गतिविधियां',
-            'और देखें',
-            () => setState(() => tab = 1),
-          ),
-          const SizedBox(height: 10),
-          if (records.isEmpty)
-            _empty(
-              'अभी कोई एंट्री नहीं है',
-              'नई Hyva, खर्च या मजदूर हाजिरी जोड़ने पर रिकॉर्ड यहाँ दिखेंगे।',
-              Icons.inbox_rounded,
-            )
-          else
-            ...records.take(5).map(_activityTile),
-          const SizedBox(height: 22),
-          _sectionTitle(
-            'खदान का सारांश',
-            'हिसाब',
-            () => setState(() => tab = 3),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            decoration: softPanel(radius: 22),
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'अभी तक का रिकॉर्ड',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-                ),
-                const SizedBox(height: 14),
-                _summaryLine('कुल Hyva एंट्री', '$trips'),
-                _summaryLine('कुल बिक्री', money(sales)),
-                _summaryLine('कुल खर्च', money(expenses)),
-                _summaryLine('शुद्ध बचत', money(sales - expenses)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _metric(IconData icon, String value, String label) {
-    return Container(
-      decoration: softPanel(radius: 22),
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: muted, size: 22),
-          const SizedBox(height: 9),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 21,
-              fontWeight: FontWeight.w600,
-              color: ink,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(label, style: const TextStyle(fontSize: 12, color: muted)),
-        ],
-      ),
-    );
-  }
-
-  Widget _quick(IconData icon, String label, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        decoration: softPanel(radius: 20),
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 13),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 26, color: ink),
-            const SizedBox(height: 9),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11, color: ink, height: 1.3),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _sectionTitle(
-    String title,
-    String action,
-    VoidCallback onTap,
-  ) {
-    return Row(
-      children: [
-        Container(
-          width: 4,
-          height: 24,
-          decoration: BoxDecoration(
-            color: ink,
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: ink,
-            ),
-          ),
-        ),
-        TextButton(
-          onPressed: onTap,
-          child: Text(action, style: const TextStyle(color: muted)),
-        ),
-      ],
-    );
-  }
-
-  IconData _iconFor(dynamic type) {
-    if (type == 'hyva') return Icons.local_shipping_rounded;
-    if (type == 'attendance' || type == 'labourPay') {
-      return Icons.groups_rounded;
-    }
-    return Icons.receipt_long_rounded;
-  }
-
-  String _titleFor(Map<String, dynamic> row) {
-    switch (row['type']) {
-      case 'hyva':
-        return '${row['vehicle'] ?? 'Hyva'}';
-      case 'attendance':
-        return 'हाजिरी • ${row['name'] ?? ''}';
-      case 'labourPay':
-        return '${row['kind'] ?? 'भुगतान'} • ${row['name'] ?? ''}';
-      default:
-        return 'खर्च • ${row['category'] ?? ''}';
-    }
-  }
-
-  String _subFor(Map<String, dynamic> row) {
-    switch (row['type']) {
-      case 'hyva':
-        return '${row['details'] ?? row['sand'] ?? ''}';
-      case 'attendance':
-        return '${row['work'] ?? ''}';
-      default:
-        return '${row['description'] ?? ''}';
-    }
-  }
-
-  double _amountFor(Map<String, dynamic> row) {
-    switch (row['type']) {
-      case 'hyva':
-        return _n(row['total']);
-      case 'attendance':
-        return _n(row['wage']);
-      default:
-        return _n(row['amount']);
-    }
-  }
-
-  Widget _activityTile(Map<String, dynamic> row) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 9),
-      padding: const EdgeInsets.all(13),
-      decoration: softPanel(radius: 17),
-      child: Row(
-        children: [
-          Icon(_iconFor(row['type']), color: muted, size: 25),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _titleFor(row),
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-                Text(
-                  '${_subFor(row)} • ${money(_amountFor(row))}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: muted, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            row['date'] ?? '',
-            style: const TextStyle(color: muted, fontSize: 11),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _recordList(
-    String title,
-    IconData icon,
-    List<String> types,
-    Widget fab,
-  ) {
-    final rows =
-        records.where((row) => types.contains(row['type'])).toList();
-
-    return _pageScaffold(
-      title,
-      icon,
-      [
-        if (rows.isEmpty)
-          _empty(
-            'अभी कोई रिकॉर्ड नहीं',
-            'नई एंट्री जोड़ने के लिए नीचे दिए बटन का उपयोग करें।',
-            icon,
-          ),
-        ...rows.map(_recordCard),
-      ],
-      fab,
-    );
-  }
-
-  Widget _recordCard(Map<String, dynamic> row) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(15),
-      decoration: softPanel(radius: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _titleFor(row),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-              Text(
-                row['date'] ?? '',
-                style: const TextStyle(color: muted, fontSize: 12),
-              ),
-            ],
-          ),
-          const SizedBox(height: 7),
-          Text(_subFor(row), style: const TextStyle(color: muted)),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  money(_amountFor(row)),
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              IconButton(
-                onPressed: () => _editRecord(row),
-                icon: const Icon(Icons.edit_outlined),
-              ),
-              IconButton(
-                onPressed: () => _confirmDelete(row),
-                icon: const Icon(
-                  Icons.delete_outline,
-                  color: Colors.redAccent,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _accounts() {
-    return _pageScaffold(
-      'हिसाब-किताब',
-      Icons.menu_book_rounded,
-      [
-        _summaryCard('कुल बिक्री', money(sales), Icons.trending_up),
-        _summaryCard(
-          'मिला हुआ भुगतान',
-          money(received),
-          Icons.payments_outlined,
-        ),
-        _summaryCard(
-          'बाकी लेना',
-          money(pending),
-          Icons.hourglass_bottom_rounded,
-        ),
-        _summaryCard(
-          'मजदूरी (हाजिरी)',
-          money(wages),
-          Icons.groups_rounded,
-        ),
-        _summaryCard(
-          'अन्य खर्च',
-          money(otherExpenses),
-          Icons.receipt_long,
-        ),
-        _summaryCard(
-          'कुल खर्च',
-          money(expenses),
-          Icons.local_gas_station_rounded,
-        ),
-        _summaryCard(
-          'शुद्ध बचत',
-          money(sales - expenses),
-          Icons.account_balance_wallet,
-        ),
-        if (records.isEmpty)
-          _empty(
-            'रिपोर्ट तैयार है',
-            'अभी कोई रिकॉर्ड नहीं है। एंट्री जोड़ने के बाद यहाँ हिसाब दिखाई देगा।',
-            Icons.bar_chart_rounded,
-          ),
-      ],
-    );
-  }
-
-  Widget _summaryCard(String title, String value, IconData icon) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(17),
-      decoration: softPanel(radius: 20),
-      child: Row(
-        children: [
-          Icon(icon, color: muted),
-          const SizedBox(width: 12),
-          Expanded(child: Text(title)),
-          Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _more() {
-    return _pageScaffold(
-      'अन्य सुविधाएं',
-      Icons.grid_view_rounded,
-      [
-        _menuItem(
-          Icons.groups_rounded,
-          'मजदूर हाजिरी',
-          'मजदूर जोड़ें, शिफ्ट और मजदूरी',
-          _attendance,
-        ),
-        _menuItem(
-          Icons.payments_outlined,
-          'मजदूर भुगतान',
-          'भुगतान और एडवांस का हिसाब',
-          _labourPayment,
-        ),
-        _menuItem(
-          Icons.account_balance_wallet_outlined,
-          'मजदूर का हिसाब',
-          'हर मजदूर की कमाई, भुगतान और बाकी',
-          _labourLedger,
-        ),
-        _menuItem(
-          Icons.file_download_outlined,
-          'Excel / PDF Export',
-          'रिपोर्ट एक्सपोर्ट',
-          _exportInfo,
-        ),
-        _menuItem(
-          Icons.settings_outlined,
-          'सेटिंग',
-          'खदान और ऐप सेटिंग',
-          _settingsInfo,
-        ),
-      ],
-    );
-  }
-
-  Widget _menuItem(
-    IconData icon,
-    String title,
-    String subtitle,
-    VoidCallback action,
-  ) {
-    return InkWell(
-      onTap: action,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: softPanel(radius: 18),
-        child: Row(
-          children: [
-            Icon(icon, size: 25),
-            const SizedBox(width: 13),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(color: muted, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right, color: muted),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _pageScaffold(
-    String title,
-    IconData icon,
-    List<Widget> children, [
-    Widget? fab,
-  ]) {
-    return Scaffold(
-      backgroundColor: canvas,
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Icon(icon, size: 22),
-            const SizedBox(width: 10),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 19,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(18),
-        children: children,
-      ),
-      floatingActionButton: fab,
-    );
-  }
-
-  Widget _empty(String title, String subtitle, IconData icon) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 34),
-      decoration: softPanel(radius: 22),
-      child: Column(
-        children: [
-          Icon(icon, size: 42, color: const Color(0xFF9AA0A4)),
-          const SizedBox(height: 13),
-          Text(
-            title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: muted,
-              fontSize: 12,
-              height: 1.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _summaryLine(String title, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(title, style: const TextStyle(color: muted)),
-          ),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
-        ],
-      ),
-    );
-  }
-
-  // FORMS
-
-  Future<void> _openForm(Widget form) async {
-    final result = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: canvas,
-      builder: (_) => form,
-    );
-
-    if (result != null) {
-      await _save(result);
-    }
-  }
-
-  Future<void> _hyvaForm() => _openForm(const HyvaForm());
-
-  Future<void> _expenseForm() => _openForm(const ExpenseForm());
-
-  Future<void> _attendance() => _openForm(const AttendanceForm());
-
-  Future<void> _labourPayment() => _openForm(const LabourPaymentForm());
-
-  void _labourLedger() {
-    Navigator.push(
-      context,
-      MaterialPageRoute<void>(
-        builder: (_) => LabourLedgerPage(records: records),
-      ),
-    );
-  }
-
-  void _exportInfo() {
-    snack(
-      context,
-      'Export सुविधा अगले चरण में जोड़ी जाएगी। अभी रिकॉर्ड फोन में सुरक्षित रहते हैं।',
-    );
-  }
-
-  void _settingsInfo() {
-    snack(context, 'खदान का नाम और अन्य सेटिंग अगले चरण में जोड़ी जाएंगी।');
-  }
-
-  Future<void> _confirmDelete(Map<String, dynamic> row) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('रिकॉर्ड हटाएं?'),
-        content: const Text('यह रिकॉर्ड स्थायी रूप से हट जाएगा।'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('रद्द करें'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('हटाएं'),
-          ),
-        ],
-      ),
-    );
-
-    if (ok == true) {
-      await _delete(row);
-    }
-  }
-
-  Future<void> _editRecord(Map<String, dynamic> row) async {
-    final hasAmount =
-        row['type'] == 'expense' || row['type'] == 'labourPay';
-
-    final descriptionController = TextEditingController(
-      text: '${row['description'] ?? row['details'] ?? ''}',
-    );
-    final amountController = TextEditingController(
-      text: hasAmount ? _n(row['amount']).toStringAsFixed(0) : '',
-    );
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('संपादित करें'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: descriptionController,
-              decoration: const InputDecoration(labelText: 'विवरण'),
-            ),
-            if (hasAmount)
-              TextField(
-                controller: amountController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'रकम (₹)'),
-              ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('रद्द'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('सेव'),
-          ),
-        ],
-      ),
-    );
-
-    if (ok != true) {
-      descriptionController.dispose();
-      amountController.dispose();
+  Future<void> _handleSubmit() async {
+    final code = _pinController.text.trim();
+    if (code.length < 4) {
+      setState(() {
+        _errorText = lang.tr(
+          'कृपया कम से कम 4 अंकों का MPIN दर्ज करें',
+          'Please enter at least a 4-digit MPIN',
+        );
+      });
       return;
     }
 
-    row['description'] = descriptionController.text;
-    if (row['type'] == 'hyva') {
-      row['details'] = descriptionController.text;
+    final prefs = await SharedPreferences.getInstance();
+
+    if (_savedMpin == null) {
+      if (!_isConfirmingNewPin) {
+        setState(() {
+          _firstEnteredPin = code;
+          _isConfirmingNewPin = true;
+          _errorText = null;
+          _pinController.clear();
+        });
+      } else {
+        if (code == _firstEnteredPin) {
+          await prefs.setString(_mpinKey, code);
+          _goHome();
+        } else {
+          setState(() {
+            _isConfirmingNewPin = false;
+            _firstEnteredPin = '';
+            _pinController.clear();
+            _errorText = lang.tr(
+              'MPIN मेल नहीं खाया, फिर से सेट करें',
+              'MPIN did not match, please set again',
+            );
+          });
+        }
+      }
+    } else {
+      if (code == _savedMpin) {
+        _goHome();
+      } else {
+        setState(() {
+          _errorText = lang.tr('गलत MPIN', 'Incorrect MPIN');
+          _pinController.clear();
+        });
+      }
     }
-
-    if (hasAmount) {
-      final amount = double.tryParse(amountController.text) ?? 0;
-      if (amount > 0) row['amount'] = amount;
-    }
-
-    await LocalStore.save(records);
-    if (mounted) setState(() {});
-
-    descriptionController.dispose();
-    amountController.dispose();
   }
-}
 
-// -----------------------------------------------------------------------------
-// LABOUR LEDGER
-// -----------------------------------------------------------------------------
-
-class LabourLedgerPage extends StatelessWidget {
-  final List<Map<String, dynamic>> records;
-
-  const LabourLedgerPage({
-    super.key,
-    required this.records,
-  });
+  void _goHome() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const DashboardHomeScreen()),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final earned = <String, double>{};
-    final paid = <String, double>{};
-
-    for (final row in records) {
-      final name = '${row['name'] ?? ''}'.trim();
-      if (name.isEmpty) continue;
-
-      if (row['type'] == 'attendance') {
-        earned[name] = (earned[name] ?? 0) + _n(row['wage']);
-      }
-
-      if (row['type'] == 'labourPay') {
-        paid[name] = (paid[name] ?? 0) + _n(row['amount']);
-      }
-    }
-
-    final names = <String>{...earned.keys, ...paid.keys}.toList()..sort();
+    final isFirstTime = _savedMpin == null;
+    final title = isFirstTime
+        ? (_isConfirmingNewPin
+            ? lang.tr('MPIN की पुष्टि करें', 'Confirm Your MPIN')
+            : lang.tr('नया MPIN बनाएं', 'Create New MPIN'))
+        : lang.tr('MPIN दर्ज करें', 'Enter MPIN');
 
     return Scaffold(
-      backgroundColor: canvas,
-      appBar: AppBar(
-        title: const Text(
-          'मजदूर का हिसाब',
-          style: TextStyle(fontSize: 19, fontWeight: FontWeight.w600),
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(18),
-        children: [
-          if (names.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(30),
-              decoration: softPanel(radius: 22),
-              child: const Text(
-                'अभी कोई मजदूर रिकॉर्ड नहीं है।',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: muted),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.desertSand,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.naturalSand),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
+                ],
               ),
-            ),
-          ...names.map((name) {
-            final earnedAmount = earned[name] ?? 0;
-            final paidAmount = paid[name] ?? 0;
-            final balance = earnedAmount - paidAmount;
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: softPanel(radius: 20),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: lang.toggleLanguage,
+                        child: Text(
+                          lang.isHindi ? 'English' : 'हिन्दी',
+                          style: const TextStyle(
+                            color: AppColors.earthBrown,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Icon(Icons.lock_outline, size: 48, color: AppColors.earthBrown),
+                  const SizedBox(height: 12),
                   Text(
-                    name,
+                    title,
                     style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.charcoal,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  rowText('कुल मजदूरी', money(earnedAmount)),
-                  rowText('भुगतान / एडवांस', money(paidAmount)),
-                  rowText(
-                    balance >= 0 ? 'बाकी देना' : 'एडवांस ज्यादा',
-                    money(balance.abs()),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: _pinController,
+                    keyboardType: TextInputType.number,
+                    obscureText: true,
+                    maxLength: 6,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 22, letterSpacing: 8),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: AppColors.white,
+                      counterText: '',
+                      errorText: _errorText,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onSubmitted: (_) => _handleSubmit(),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.earthBrown,
+                        foregroundColor: AppColors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: _handleSubmit,
+                      child: Text(
+                        isFirstTime
+                            ? (_isConfirmingNewPin
+                                ? lang.tr('सेव करें', 'Save MPIN')
+                                : lang.tr('आगे बढ़ें', 'Continue'))
+                            : lang.tr('अनलॉक करें', 'Unlock'),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
                   ),
                 ],
               ),
-            );
-          }),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class DashboardHomeScreen extends StatefulWidget {
+  const DashboardHomeScreen({super.key});
+
+  @override
+  State<DashboardHomeScreen> createState() => _DashboardHomeScreenState();
+}
+
+class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
+  int totalHyvaToday = 0;
+  double totalRoyaltyToday = 0;
+  double totalExpenseToday = 0;
+  List> recentItems = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTodaySummary();
+  }
+
+  Future<void> _loadTodaySummary() async {
+    final db = await AppDatabase.instance.database;
+    final todayStr = DateFormat('dd MMM yyyy').format(DateTime.now());
+
+    final hyvaRes = await db.rawQuery(
+      'SELECT COUNT(*) as cnt, COALESCE(SUM(royalty_amount), 0) as r_sum FROM hyva_entries WHERE entry_date = ?',
+      [todayStr],
+    );
+    final expRes = await db.rawQuery(
+      'SELECT COALESCE(SUM(amount), 0) as e_sum FROM expenses WHERE entry_date = ?',
+      [todayStr],
+    );
+
+    final recentHyva = await db.query(
+      'hyva_entries',
+      orderBy: 'id DESC',
+      limit: 5,
+    );
+
+    setState(() {
+      totalHyvaToday = (hyvaRes.first['cnt'] as int?) ?? 0;
+      totalRoyaltyToday = ((hyvaRes.first['r_sum'] as num?) ?? 0).toDouble();
+      totalExpenseToday = ((expRes.first['e_sum'] as num?) ?? 0).toDouble();
+      recentItems = recentHyva;
+    });
+  }
+
+  double get netRemaining => totalRoyaltyToday - totalExpenseToday;
+
+  Future<void> _openRestoreDialog() async {
+    final files = await BackupService.listBackups();
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.sandBeige,
+        title: Text(lang.tr('बैकअप एवं Restore', 'Backup & Restore')),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: files.isEmpty
+              ? Text(lang.tr('कोई बैकअप फाइल नहीं मिली', 'No backup files found'))
+              : ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: files.length,
+                  itemBuilder: (_, i) {
+                    final f = files[i];
+                    return ListTile(
+                      title: Text(p.basename(f.path), style: const TextStyle(fontSize: 13)),
+                      trailing: TextButton(
+                        onPressed: () async {
+                          await BackupService.restoreFromBackup(f);
+                          if (!ctx.mounted) return;
+                          Navigator.pop(ctx);
+                          _loadTodaySummary();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                lang.tr('डेटा Restore हो गया!', 'Data Restored!'),
+                              ),
+                            ),
+                          );
+                        },
+                        child: const Text('Restore'),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.earthBrown,
+              foregroundColor: AppColors.white,
+            ),
+            onPressed: () async {
+              await BackupService.createBackupNow();
+              if (!ctx.mounted) return;
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(lang.tr('नया बैकअप बन गया', 'New Backup Created'))),
+              );
+            },
+            child: Text(lang.tr('अभी बैकअप बनाएं', 'Backup Now')),
+          ),
         ],
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    final formattedDate = DateFormat('EEEE • dd MMMM yyyy').format(DateTime.now());
+
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: AppColors.desertSand,
+        foregroundColor: AppColors.charcoal,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Ret Khadan Management',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              lang.tr('रेत खदान प्रबंधन', 'Sand Mine Operations'),
+              style: const TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            tooltip: lang.tr('भाषा बदलें', 'Switch Language'),
+            onPressed: () {
+              lang.toggleLanguage();
+              setState(() {});
+            },
+            icon: const Icon(Icons.translate),
+          ),
+          IconButton(
+            tooltip: lang.tr('बैकअप एवं Restore', 'Backup & Restore'),
+            onPressed: _openRestoreDialog,
+            icon: const Icon(Icons.backup_outlined),
+          ),
+        ],
+      ),
+      drawer: Drawer(
+        backgroundColor: AppColors.sandBeige,
+        child: ListView(
+          children: [
+            DrawerHeader(
+              decoration: const BoxDecoration(color: AppColors.earthBrown),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    lang.tr('मेनू / Menu', 'Menu'),
+                    style: const TextStyle(
+                      color: AppColors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    lang.tr('रेत खदान प्रबंधन', 'Ret Khadan Management'),
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.local_shipping, color: AppColors.earthBrown),
+              title: Text(lang.tr('1. Hyva Entry List & Statement', '1. Hyva Entry List & Statement')),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HyvaListHubScreen()),
+                ).then((_) => _loadTodaySummary());
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.receipt_long, color: AppColors.earthBrown),
+              title: Text(lang.tr('2. Royalty Entry List', '2. Royalty Entry List')),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const RoyaltyListHubScreen()),
+                ).then((_) => _loadTodaySummary());
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.account_balance_wallet, color: AppColors.earthBrown),
+              title: Text(lang.tr('3. Kharch List & Statement', '3. Kharch List & Statement')),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const KharchHubScreen()),
+                ).then((_) => _loadTodaySummary());
+              },
+            ),
+          ],
+        ),
+      ),
+      body: RefreshIndicator(
+        onRefresh: _loadTodaySummary,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.desertSand,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(lang.tr('नमस्कार!', 'Namaskar!')),
+                  const SizedBox(height: 4),
+                  Text(
+                    lang.tr('आज का हिसाब', "Today's Summary"),
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                  Text(formattedDate, style: const TextStyle(fontSize: 12)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              lang.tr('आज का कारोबार', "Today's Business"),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.45,
+              children: [
+                _StatCard(
+                  title: lang.tr('कुल हाइवा', 'Total Hyva'),
+                  value: '$totalHyvaToday',
+                  icon: Icons.local_shipping_outlined,
+                ),
+                _StatCard(
+                  title: lang.tr('कुल रॉयल्टी', 'Total Royalty'),
+                  value: '₹${totalRoyaltyToday.toStringAsFixed(0)}',
+                  icon: Icons.receipt_outlined,
+                ),
+                _StatCard(
+                  title: lang.tr('कुल खर्च', 'Total Expense'),
+                  value: '₹${totalExpenseToday.toStringAsFixed(0)}',
+                  icon: Icons.account_balance_wallet_outlined,
+                ),
+                _StatCard(
+                  title: lang.tr('शेष राशि', 'Remaining'),
+                  value: '₹${netRemaining.toStringAsFixed(0)}',
+                  icon: Icons.payments_outlined,
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Text(
+              lang.tr('मुख्य एंट्री', 'Quick Actions'),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.earthBrown,
+                      foregroundColor: AppColors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const HyvaEntryScreen()),
+                      ).then((_) => _loadTodaySummary());
+                    },
+                    icon: const Icon(Icons.local_shipping),
+                    label: Text(lang.tr('हाइवा एंट्री', 'Hyva Entry')),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.earthBrown,
+                      foregroundColor: AppColors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const RoyaltyEntryScreen()),
+                      ).then((_) => _loadTodaySummary());
+                    },
+                    icon: const Icon(Icons.receipt_long),
+                    label: Text(lang.tr('रॉयल्टी एंट्री', 'Royalty Entry')),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.desertSand,
+                  foregroundColor: AppColors.charcoal,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const KharchHubScreen()),
+                  ).then((_) => _loadTodaySummary());
+                },
+                icon: const Icon(Icons.account_balance_wallet),
+                label: Text(lang.tr('खर्च एंट्री', 'Expense Entry')),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              lang.tr('हाल की एंट्री', 'Recent Entries'),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            if (recentItems.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(lang.tr('अभी कोई एंट्री नहीं है', 'No entries yet')),
+              )
+            else
+              ...recentItems.map(
+                (item) => Card(
+                  color: AppColors.white,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    title: Text(
+                      '${item['vehicle_no']} • ${item['owner_name']}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text('${item['entry_date']} • ${item['khadan_name']} • ${item['payment_status']}'),
+                    trailing: Text(
+                      '₹${item['amount']}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-// -----------------------------------------------------------------------------
-// FORM FRAME
-// -----------------------------------------------------------------------------
-
-class FormFrame extends StatelessWidget {
+class _StatCard extends StatelessWidget {
   final String title;
-  final List<Widget> children;
+  final String value;
+  final IconData icon;
 
-  const FormFrame({
-    super.key,
+  const _StatCard({
     required this.title,
-    required this.children,
+    required this.value,
+    required this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 18,
-        right: 18,
-        top: 18,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 22,
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.naturalSand.withValues(alpha: 0.4)),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3)),
+        ],
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 38,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFB8BDC1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Icon(icon, color: AppColors.earthBrown, size: 22),
+          Text(title, style: const TextStyle(fontSize: 12, color: AppColors.charcoal)),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.charcoal,
             ),
-            const SizedBox(height: 18),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 18),
-            ...children,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// HYVA FORM
-// -----------------------------------------------------------------------------
-
-class HyvaForm extends StatefulWidget {
-  const HyvaForm({super.key});
-
-  @override
-  State<HyvaForm> createState() => _HyvaFormState();
-}
-
-class _HyvaFormState extends State<HyvaForm> {
-  final vehicle = TextEditingController();
-  final tyre = TextEditingController();
-  final owner = TextEditingController();
-  final driver = TextEditingController();
-  final mobile = TextEditingController();
-  final sandAmount = TextEditingController();
-  final royaltyQty = TextEditingController();
-  final royaltyAmount = TextEditingController();
-  final online = TextEditingController();
-  final cash = TextEditingController();
-  final receiver = TextEditingController();
-  final sender = TextEditingController();
-
-  DateTime date = DateTime.now();
-  TimeOfDay time = TimeOfDay.now();
-  String sand = 'Medium';
-
-  double get total =>
-      (double.tryParse(sandAmount.text) ?? 0) +
-      (double.tryParse(royaltyAmount.text) ?? 0);
-
-  double get paid =>
-      (double.tryParse(online.text) ?? 0) +
-      (double.tryParse(cash.text) ?? 0);
-
-  void _update(String _) => setState(() {});
-
-  @override
-  void dispose() {
-    vehicle.dispose();
-    tyre.dispose();
-    owner.dispose();
-    driver.dispose();
-    mobile.dispose();
-    sandAmount.dispose();
-    royaltyQty.dispose();
-    royaltyAmount.dispose();
-    online.dispose();
-    cash.dispose();
-    receiver.dispose();
-    sender.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FormFrame(
-      title: 'नई Hyva एंट्री',
-      children: [
-        field('गाड़ी नंबर', vehicle, hint: 'जैसे CG 04 AB 1234'),
-        Row(
-          children: [
-            Expanded(child: field('टायर', tyre, hint: '10 / 12 / 14')),
-            const SizedBox(width: 8),
-            Expanded(
-              child: field(
-                'मोबाइल नंबर',
-                mobile,
-                type: TextInputType.phone,
-              ),
-            ),
-          ],
-        ),
-        field('मालिक का नाम', owner),
-        field('ड्राइवर का नाम', driver),
-        Row(
-          children: [
-            Expanded(
-              child: dateButton(
-                context,
-                date,
-                (picked) => setState(() => date = picked),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () async {
-                  final picked = await showTimePicker(
-                    context: context,
-                    initialTime: time,
-                  );
-                  if (picked != null) {
-                    setState(() => time = picked);
-                  }
-                },
-                icon: const Icon(Icons.access_time),
-                label: Text(time.format(context)),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        dd(
-          'रेत का प्रकार',
-          sand,
-          ['Medium', 'Medium Fine', 'Fine Plaster'],
-          (value) => setState(() => sand = value ?? sand),
-        ),
-        field(
-          'रेत की रकम (₹)',
-          sandAmount,
-          type: TextInputType.number,
-          onChanged: _update,
-        ),
-        const Text('Royalty', style: TextStyle(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: field(
-                'Quantity',
-                royaltyQty,
-                type: TextInputType.number,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: field(
-                'Amount (₹)',
-                royaltyAmount,
-                type: TextInputType.number,
-                onChanged: _update,
-              ),
-            ),
-          ],
-        ),
-        field(
-          'Online Payment (₹)',
-          online,
-          type: TextInputType.number,
-          onChanged: _update,
-        ),
-        field(
-          'Cash Payment (₹)',
-          cash,
-          type: TextInputType.number,
-          onChanged: _update,
-        ),
-        field('Online Receiver', receiver),
-        field('Sender', sender),
-        Container(
-          padding: const EdgeInsets.all(15),
-          decoration: softPanel(radius: 15),
-          child: Column(
-            children: [
-              rowText('कुल रकम', money(total)),
-              rowText('कुल भुगतान', money(paid)),
-              rowText(
-                'बाकी',
-                money((total - paid).clamp(0, double.infinity).toDouble()),
-              ),
-              rowText(
-                'स्थिति',
-                paid >= total && total > 0 ? 'जमा' : 'बाकी',
-              ),
-            ],
           ),
-        ),
-        const SizedBox(height: 16),
-        saveButton(context, () {
-          if (vehicle.text.trim().isEmpty) {
-            snack(context, 'गाड़ी नंबर जरूरी है');
-            return;
-          }
-
-          if (total <= 0) {
-            snack(context, 'रेत या royalty की रकम डालें');
-            return;
-          }
-
-          Navigator.pop(context, <String, dynamic>{
-            'type': 'hyva',
-            'date': fmt(date),
-            'time': time.format(context),
-            'vehicle': vehicle.text.trim(),
-            'tyre': tyre.text,
-            'owner': owner.text,
-            'driver': driver.text,
-            'mobile': mobile.text,
-            'sand': sand,
-            'sandAmount': sandAmount.text,
-            'royaltyQty': royaltyQty.text,
-            'royaltyAmount': royaltyAmount.text,
-            'online': online.text,
-            'cash': cash.text,
-            'receiver': receiver.text,
-            'sender': sender.text,
-            'total': total,
-            'paid': paid,
-            'details':
-                '$sand • ${driver.text} • ${time.format(context)}',
-          });
-        }),
-      ],
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// EXPENSE FORM
-// -----------------------------------------------------------------------------
-
-class ExpenseForm extends StatefulWidget {
-  const ExpenseForm({super.key});
-
-  @override
-  State<ExpenseForm> createState() => _ExpenseFormState();
-}
-
-class _ExpenseFormState extends State<ExpenseForm> {
-  final amount = TextEditingController();
-  final description = TextEditingController();
-
-  String category = 'डीजल';
-  String mode = 'Cash';
-  DateTime date = DateTime.now();
-
-  @override
-  void dispose() {
-    amount.dispose();
-    description.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FormFrame(
-      title: 'दैनिक खर्च',
-      children: [
-        dd(
-          'खर्च का प्रकार',
-          category,
-          [
-            'डीजल',
-            'मजदूरी',
-            'मशीन मरम्मत',
-            'गाड़ी खर्च',
-            'खाना-पानी',
-            'मशीन किराया',
-            'अन्य',
-          ],
-          (value) => setState(() => category = value ?? category),
-        ),
-        field('विवरण', description, hint: 'खर्च किसलिए हुआ?'),
-        field('रकम (₹)', amount, type: TextInputType.number),
-        dd(
-          'भुगतान माध्यम',
-          mode,
-          ['Cash', 'Online'],
-          (value) => setState(() => mode = value ?? mode),
-        ),
-        dateButton(
-          context,
-          date,
-          (picked) => setState(() => date = picked),
-        ),
-        const SizedBox(height: 12),
-        saveButton(context, () {
-          final value = double.tryParse(amount.text) ?? 0;
-
-          if (value <= 0) {
-            snack(context, 'सही रकम डालें');
-            return;
-          }
-
-          Navigator.pop(context, <String, dynamic>{
-            'type': 'expense',
-            'date': fmt(date),
-            'category': category,
-            'description': description.text,
-            'amount': value,
-            'mode': mode,
-          });
-        }),
-      ],
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// ATTENDANCE FORM
-// -----------------------------------------------------------------------------
-
-const Map<String, double> workOptions = {
-  'Day': 1.0,
-  'Night': 1.0,
-  'Half Day': 0.5,
-  'Half Night': 0.5,
-  'Full Day + Half Night': 1.5,
-  'Day + Night': 2.0,
-  'Half Day + Half Night': 1.0,
-  'Absent': 0.0,
-  'Holiday': 0.0,
-};
-
-class AttendanceForm extends StatefulWidget {
-  const AttendanceForm({super.key});
-
-  @override
-  State<AttendanceForm> createState() => _AttendanceFormState();
-}
-
-class _AttendanceFormState extends State<AttendanceForm> {
-  final name = TextEditingController();
-  final daily = TextEditingController();
-
-  String work = 'Day';
-  DateTime date = DateTime.now();
-
-  double get wage =>
-      (double.tryParse(daily.text) ?? 0) * (workOptions[work] ?? 1);
-
-  @override
-  void dispose() {
-    name.dispose();
-    daily.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FormFrame(
-      title: 'मजदूर हाजिरी',
-      children: [
-        field('मजदूर का नाम', name, hint: 'मजदूर का नाम'),
-        field(
-          'दिहाड़ी (₹)',
-          daily,
-          type: TextInputType.number,
-          hint: 'एक दिन की दिहाड़ी',
-          onChanged: (_) => setState(() {}),
-        ),
-        dd(
-          'आज का काम / शिफ्ट',
-          work,
-          workOptions.keys.toList(),
-          (value) => setState(() => work = value ?? work),
-        ),
-        dateButton(
-          context,
-          date,
-          (picked) => setState(() => date = picked),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: softPanel(),
-          child: rowText('आज की मजदूरी', money(wage)),
-        ),
-        const SizedBox(height: 12),
-        saveButton(context, () {
-          if (name.text.trim().isEmpty || daily.text.trim().isEmpty) {
-            snack(context, 'नाम और दिहाड़ी जरूरी है');
-            return;
-          }
-
-          Navigator.pop(context, <String, dynamic>{
-            'type': 'attendance',
-            'date': fmt(date),
-            'name': name.text.trim(),
-            'dailyRate': double.tryParse(daily.text) ?? 0,
-            'work': work,
-            'wage': wage,
-          });
-        }),
-      ],
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// LABOUR PAYMENT FORM
-// -----------------------------------------------------------------------------
-
-class LabourPaymentForm extends StatefulWidget {
-  const LabourPaymentForm({super.key});
-
-  @override
-  State<LabourPaymentForm> createState() => _LabourPaymentFormState();
-}
-
-class _LabourPaymentFormState extends State<LabourPaymentForm> {
-  final name = TextEditingController();
-  final amount = TextEditingController();
-  final note = TextEditingController();
-
-  String kind = 'भुगतान';
-  String mode = 'Cash';
-  DateTime date = DateTime.now();
-
-  @override
-  void dispose() {
-    name.dispose();
-    amount.dispose();
-    note.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FormFrame(
-      title: 'मजदूर भुगतान / एडवांस',
-      children: [
-        field('मजदूर का नाम', name),
-        dd(
-          'एंट्री का प्रकार',
-          kind,
-          ['भुगतान', 'एडवांस'],
-          (value) => setState(() => kind = value ?? kind),
-        ),
-        field('रकम (₹)', amount, type: TextInputType.number),
-        dd(
-          'माध्यम',
-          mode,
-          ['Cash', 'Online'],
-          (value) => setState(() => mode = value ?? mode),
-        ),
-        field('नोट', note),
-        dateButton(
-          context,
-          date,
-          (picked) => setState(() => date = picked),
-        ),
-        const SizedBox(height: 12),
-        saveButton(context, () {
-          final value = double.tryParse(amount.text) ?? 0;
-
-          if (name.text.trim().isEmpty || value <= 0) {
-            snack(context, 'नाम और सही रकम जरूरी है');
-            return;
-          }
-
-          Navigator.pop(context, <String, dynamic>{
-            'type': 'labourPay',
-            'date': fmt(date),
-            'name': name.text.trim(),
-            'kind': kind,
-            'amount': value,
-            'mode': mode,
-            'description': note.text,
-          });
-        }),
-      ],
+        ],
+      ),
     );
   }
 }
