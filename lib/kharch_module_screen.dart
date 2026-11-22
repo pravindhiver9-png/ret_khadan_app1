@@ -5,15 +5,15 @@ import 'package:sqflite/sqflite.dart';
 import 'main.dart';
 import 'export_service.dart';
 
-const List> kKharchCategories = [
-  {'key': 'JCB', 'hi': '1. JCB खर्च', 'en': '1. JCB Expense'},
-  {'key': 'Diesel', 'hi': '2. Diesel खर्च', 'en': '2. Diesel Expense'},
-  {'key': 'Media', 'hi': '3. Media खर्च', 'en': '3. Media Expense'},
-  {'key': 'Khana', 'hi': '4. Khana खर्च', 'en': '4. Food Expense'},
-  {'key': 'Besharam', 'hi': '5. बेशरम वाला', 'en': '5. Besharam Wala'},
-  {'key': 'Majdoori', 'hi': '6. मजदूरी', 'en': '6. Labour / Majdoori'},
-  {'key': 'GaonFund', 'hi': '7. गाँव फंड', 'en': '7. Village Fund'},
-  {'key': 'Other', 'hi': '8. अन्य खर्च', 'en': '8. Other Expense'},
+const List> kKharchCategories = >[
+  <String, String>{'key': 'JCB', 'hi': '1. JCB खर्च', 'en': '1. JCB Expense'},
+  <String, String>{'key': 'Diesel', 'hi': '2. Diesel खर्च', 'en': '2. Diesel Expense'},
+  <String, String>{'key': 'Media', 'hi': '3. Media खर्च', 'en': '3. Media Expense'},
+  <String, String>{'key': 'Khana', 'hi': '4. Khana खर्च', 'en': '4. Food Expense'},
+  <String, String>{'key': 'Besharam', 'hi': '5. बेशरम वाला', 'en': '5. Besharam Wala'},
+  <String, String>{'key': 'Majdoori', 'hi': '6. मजदूरी', 'en': '6. Labour / Majdoori'},
+  <String, String>{'key': 'GaonFund', 'hi': '7. गाँव फंड', 'en': '7. Village Fund'},
+  <String, String>{'key': 'Other', 'hi': '8. अन्य खर्च', 'en': '8. Other Expense'},
 ];
 
 class KharchHubScreen extends StatelessWidget {
@@ -46,9 +46,7 @@ class KharchHubScreen extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.earthBrown,
                   foregroundColor: AppColors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 onPressed: () {
                   Navigator.push(
@@ -75,24 +73,17 @@ class KharchHubScreen extends StatelessWidget {
               backgroundColor: AppColors.desertSand,
               foregroundColor: AppColors.charcoal,
               padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const CombinedExpenseStatementScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const CombinedExpenseStatementScreen()),
               );
             },
             icon: const Icon(Icons.summarize),
             label: Text(
-              lang.tr(
-                'संयुक्त खर्च स्टेटमेंट (Expense Statement)',
-                'Combined Expense Statement',
-              ),
+              lang.tr('संयुक्त खर्च स्टेटमेंट (Expense Statement)', 'Combined Expense Statement'),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
@@ -102,24 +93,17 @@ class KharchHubScreen extends StatelessWidget {
               backgroundColor: AppColors.naturalSand,
               foregroundColor: AppColors.charcoal,
               padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const BesharamBalanceStatementScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const BesharamBalanceStatementScreen()),
               );
             },
             icon: const Icon(Icons.account_balance),
             label: Text(
-              lang.tr(
-                'बेशरम वाला Balance Statement',
-                'Besharam Wala Balance Statement',
-              ),
+              lang.tr('बेशरम वाला Balance Statement', 'Besharam Wala Balance Statement'),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
@@ -144,7 +128,7 @@ class KharchCategoryScreen extends StatefulWidget {
 }
 
 class _KharchCategoryScreenState extends State<KharchCategoryScreen> {
-  List> entries = >[];
+  RowList entries = <RowMap>[];
 
   @override
   void initState() {
@@ -183,13 +167,8 @@ class _KharchCategoryScreenState extends State<KharchCategoryScreen> {
               );
               if (picked == null) return;
               final dStr = DateFormat('dd MMM yyyy').format(picked);
-              final filtered =
-                  entries.where((e) => e['entry_date'] == dStr).toList();
-              await ExportService.exportKharchPdf(
-                widget.title,
-                filtered,
-                'Date: $dStr',
-              );
+              final filtered = entries.where((e) => e['entry_date'] == dStr).toList();
+              await ExportService.exportKharchPdf(widget.title, filtered, 'Date: $dStr');
             },
           ),
           ListTile(
@@ -201,11 +180,7 @@ class _KharchCategoryScreenState extends State<KharchCategoryScreen> {
               final filtered = entries
                   .where((e) => e['entry_date'].toString().endsWith(mStr))
                   .toList();
-              await ExportService.exportKharchPdf(
-                widget.title,
-                filtered,
-                'Month: $mStr',
-              );
+              await ExportService.exportKharchPdf(widget.title, filtered, 'Month: $mStr');
             },
           ),
           ListTile(
@@ -213,11 +188,7 @@ class _KharchCategoryScreenState extends State<KharchCategoryScreen> {
             title: Text(lang.tr('All PDF', 'All PDF')),
             onTap: () async {
               Navigator.pop(ctx);
-              await ExportService.exportKharchPdf(
-                widget.title,
-                entries,
-                'All Records',
-              );
+              await ExportService.exportKharchPdf(widget.title, entries, 'All Records');
             },
           ),
           ListTile(
@@ -266,9 +237,7 @@ class _KharchCategoryScreenState extends State<KharchCategoryScreen> {
         label: Text(lang.tr('नई एंट्री', 'New Entry')),
       ),
       body: entries.isEmpty
-          ? Center(
-              child: Text(lang.tr('कोई रिकॉर्ड नहीं है', 'No records found')),
-            )
+          ? Center(child: Text(lang.tr('कोई रिकॉर्ड नहीं है', 'No records found')))
           : ListView.builder(
               padding: const EdgeInsets.all(14),
               itemCount: entries.length,
@@ -307,11 +276,7 @@ class _KharchCategoryScreenState extends State<KharchCategoryScreen> {
                           icon: const Icon(Icons.delete, color: Colors.red),
                           onPressed: () async {
                             final db = await AppDatabase.instance.database;
-                            await db.delete(
-                              'expenses',
-                              where: 'id = ?',
-                              whereArgs: [item['id']],
-                            );
+                            await db.delete('expenses', where: 'id = ?', whereArgs: [item['id']]);
                             _load();
                           },
                         ),
@@ -328,7 +293,7 @@ class _KharchCategoryScreenState extends State<KharchCategoryScreen> {
 class KharchFormScreen extends StatefulWidget {
   final String categoryKey;
   final String title;
-  final Map<String, dynamic>? existing;
+  final RowMap? existing;
 
   const KharchFormScreen({
     super.key,
@@ -364,12 +329,8 @@ class _KharchFormScreenState extends State<KharchFormScreen> {
   final _h2Ctrl = TextEditingController();
 
   int _mediaCount = 1;
-  final List<TextEditingController> _mediaNames = <TextEditingController>[
-    TextEditingController(),
-  ];
-  final List<TextEditingController> _mediaChannels = <TextEditingController>[
-    TextEditingController(),
-  ];
+  final List<TextEditingController> _mediaNames = <TextEditingController>[TextEditingController()];
+  final List<TextEditingController> _mediaChannels = <TextEditingController>[TextEditingController()];
 
   @override
   void initState() {
@@ -450,7 +411,7 @@ class _KharchFormScreenState extends State<KharchFormScreen> {
       );
     }
 
-    final data = {
+    final data = <String, dynamic>{
       'category': widget.categoryKey,
       'entry_date': dateStr,
       'entry_time': timeStr,
@@ -470,12 +431,7 @@ class _KharchFormScreenState extends State<KharchFormScreen> {
     };
 
     if (widget.existing != null) {
-      await db.update(
-        'expenses',
-        data,
-        where: 'id = ?',
-        whereArgs: [widget.existing!['id']],
-      );
+      await db.update('expenses', data, where: 'id = ?', whereArgs: [widget.existing!['id']]);
     } else {
       final expId = await db.insert('expenses', data);
       if (widget.categoryKey == 'Besharam' && paidAmt > 0) {
@@ -532,10 +488,7 @@ class _KharchFormScreenState extends State<KharchFormScreen> {
                     icon: const Icon(Icons.access_time, size: 18),
                     label: Text(_time.format(context)),
                     onPressed: () async {
-                      final t = await showTimePicker(
-                        context: context,
-                        initialTime: _time,
-                      );
+                      final t = await showTimePicker(context: context, initialTime: _time);
                       if (t != null) setState(() => _time = t);
                     },
                   ),
@@ -585,11 +538,7 @@ class _KharchFormScreenState extends State<KharchFormScreen> {
               ),
             ],
             if (k == 'Diesel') ...[
-              _box(
-                _qtyCtrl,
-                lang.tr('डीजल की मात्रा (लीटर)', 'Diesel Litres'),
-                num: true,
-              ),
+              _box(_qtyCtrl, lang.tr('डीजल की मात्रा (लीटर)', 'Diesel Litres'), num: true),
               const SizedBox(height: 10),
               _box(_personCtrl, lang.tr('डीजल लाने वाले का नाम', 'Brought By')),
             ],
@@ -614,9 +563,7 @@ class _KharchFormScreenState extends State<KharchFormScreen> {
                     children: [
                       Expanded(child: _box(_mediaNames[i], 'व्यक्ति ${i + 1} नाम')),
                       const SizedBox(width: 8),
-                      Expanded(
-                        child: _box(_mediaChannels[i], 'चैनल / प्रेस ${i + 1}'),
-                      ),
+                      Expanded(child: _box(_mediaChannels[i], 'चैनल / प्रेस ${i + 1}')),
                     ],
                   ),
                 ),
@@ -675,19 +622,12 @@ class _KharchFormScreenState extends State<KharchFormScreen> {
     );
   }
 
-  Widget _box(
-    TextEditingController c,
-    String label, {
-    bool num = false,
-    bool req = false,
-  }) {
+  Widget _box(TextEditingController c, String label, {bool num = false, bool req = false}) {
     return TextFormField(
       controller: c,
       keyboardType: num ? TextInputType.number : TextInputType.text,
       validator: req
-          ? (v) => (v == null || v.trim().isEmpty)
-              ? lang.tr('आवश्यक है', 'Required')
-              : null
+          ? (v) => (v == null || v.trim().isEmpty) ? lang.tr('आवश्यक है', 'Required') : null
           : null,
       decoration: InputDecoration(
         labelText: label,
@@ -703,14 +643,11 @@ class CombinedExpenseStatementScreen extends StatefulWidget {
   const CombinedExpenseStatementScreen({super.key});
 
   @override
-  State<CombinedExpenseStatementScreen> createState() =>
-      _CombinedExpenseStatementScreenState();
+  State<CombinedExpenseStatementScreen> createState() => _CombinedExpenseStatementScreenState();
 }
 
-class _CombinedExpenseStatementScreenState
-    extends State<CombinedExpenseStatementScreen> {
-  Map<String, List>> groupedByDate =
-      <String, List>>{};
+class _CombinedExpenseStatementScreenState extends State<CombinedExpenseStatementScreen> {
+  Map<String, RowList> groupedByDate = <String, RowList>{};
 
   @override
   void initState() {
@@ -721,10 +658,10 @@ class _CombinedExpenseStatementScreenState
   Future<void> _load() async {
     final db = await AppDatabase.instance.database;
     final rows = await db.query('expenses', orderBy: 'id DESC');
-    final map = <String, List>>{};
+    final map = <String, RowList>{};
     for (final r in rows) {
       final d = r['entry_date'].toString();
-      map.putIfAbsent(d, () => >[]).add(r);
+      map.putIfAbsent(d, () => <RowMap>[]).add(r);
     }
     setState(() => groupedByDate = map);
   }
@@ -758,10 +695,7 @@ class _CombinedExpenseStatementScreenState
               children: kKharchCategories.map((cat) {
                 final catSum = items
                     .where((e) => e['category'] == cat['key'])
-                    .fold<double>(
-                      0,
-                      (s, e) => s + ((e['amount'] as num?) ?? 0).toDouble(),
-                    );
+                    .fold<double>(0, (s, e) => s + ((e['amount'] as num?) ?? 0).toDouble());
                 return ListTile(
                   dense: true,
                   title: Text(lang.tr(cat['hi']!, cat['en']!)),
@@ -780,13 +714,11 @@ class BesharamBalanceStatementScreen extends StatefulWidget {
   const BesharamBalanceStatementScreen({super.key});
 
   @override
-  State<BesharamBalanceStatementScreen> createState() =>
-      _BesharamBalanceStatementScreenState();
+  State<BesharamBalanceStatementScreen> createState() => _BesharamBalanceStatementScreenState();
 }
 
-class _BesharamBalanceStatementScreenState
-    extends State<BesharamBalanceStatementScreen> {
-  List> items = >[];
+class _BesharamBalanceStatementScreenState extends State<BesharamBalanceStatementScreen> {
+  RowList items = <RowMap>[];
 
   @override
   void initState() {
@@ -805,7 +737,7 @@ class _BesharamBalanceStatementScreenState
     setState(() {});
   }
 
-  Future<void> _addInstallment(Map<String, dynamic> exp) async {
+  Future<void> _addInstallment(RowMap exp) async {
     final payCtrl = TextEditingController();
     final noteCtrl = TextEditingController();
     String mode = 'Cash';
@@ -849,10 +781,7 @@ class _BesharamBalanceStatementScreenState
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.earthBrown,
@@ -908,9 +837,7 @@ class _BesharamBalanceStatementScreenState
       appBar: AppBar(
         backgroundColor: AppColors.desertSand,
         foregroundColor: AppColors.charcoal,
-        title: Text(
-          lang.tr('बेशरम वाला Balance Statement', 'Besharam Balance Statement'),
-        ),
+        title: Text(lang.tr('बेशरम वाला Balance Statement', 'Besharam Balance Statement')),
       ),
       body: ListView.builder(
         padding: const EdgeInsets.all(14),
