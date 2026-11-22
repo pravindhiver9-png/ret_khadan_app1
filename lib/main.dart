@@ -11,6 +11,9 @@ import 'royalty_entry_screen.dart';
 import 'kharch_module_screen.dart';
 import 'lists_and_statements_screen.dart';
 
+typedef RowMap = Map<String, dynamic>;
+typedef RowList = List<RowMap>;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppDatabase.instance.database;
@@ -247,7 +250,7 @@ class BackupService {
   static Future<List<File>> listBackups() async {
     final appDocDir = await getApplicationDocumentsDirectory();
     final backupDir = Directory(p.join(appDocDir.path, 'AutoBackups'));
-    if (!await backupDir.exists()) return [];
+    if (!await backupDir.exists()) return <File>[];
     final files = backupDir.listSync().whereType<File>().toList();
     files.sort((a, b) => b.path.compareTo(a.path));
     return files;
@@ -455,7 +458,7 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
   int totalHyvaToday = 0;
   double totalRoyaltyToday = 0;
   double totalExpenseToday = 0;
-  List> recentItems = >[];
+  RowList recentItems = <RowMap>[];
 
   @override
   void initState() {
@@ -802,7 +805,9 @@ class _DashboardHomeScreenState extends State<DashboardHomeScreen> {
                       '${item['vehicle_no']} • ${item['owner_name']}',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    subtitle: Text('${item['entry_date']} • ${item['khadan_name']} • ${item['payment_status']}'),
+                    subtitle: Text(
+                      '${item['entry_date']} • ${item['khadan_name']} • ${item['payment_status']}',
+                    ),
                     trailing: Text(
                       '₹${item['amount']}',
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
