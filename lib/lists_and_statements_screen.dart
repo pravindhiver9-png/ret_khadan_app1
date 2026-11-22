@@ -4,7 +4,6 @@ import 'main.dart';
 import 'export_service.dart';
 import 'royalty_entry_screen.dart';
 
-/// 1. HYVA ENTRY LIST HUB (Date Wise, Monthly, All, Owner Wise Statement)
 class HyvaListHubScreen extends StatelessWidget {
   const HyvaListHubScreen({super.key});
 
@@ -42,7 +41,7 @@ class HyvaListHubScreen extends StatelessWidget {
 }
 
 class _HyvaFilteredList extends StatefulWidget {
-  final String mode; // date | month | all
+  final String mode;
   const _HyvaFilteredList({required this.mode});
 
   @override
@@ -51,7 +50,7 @@ class _HyvaFilteredList extends StatefulWidget {
 
 class _HyvaFilteredListState extends State<_HyvaFilteredList> {
   DateTime selectedDate = DateTime.now();
-  List> rows = [];
+  List> rows = >[];
 
   @override
   void initState() {
@@ -158,7 +157,6 @@ class _HyvaFilteredListState extends State<_HyvaFilteredList> {
   }
 }
 
-/// Owner Wise Hyva Statement (Free entries excluded from balance)
 class OwnerWiseHyvaStatementTab extends StatefulWidget {
   const OwnerWiseHyvaStatementTab({super.key});
 
@@ -167,7 +165,7 @@ class OwnerWiseHyvaStatementTab extends StatefulWidget {
 }
 
 class _OwnerWiseHyvaStatementTabState extends State<OwnerWiseHyvaStatementTab> {
-  Map<String, List>> byOwner = {};
+  Map<String, List>> byOwner = <String, List>>{};
 
   @override
   void initState() {
@@ -181,7 +179,7 @@ class _OwnerWiseHyvaStatementTabState extends State<OwnerWiseHyvaStatementTab> {
     final map = <String, List>>{};
     for (final r in all) {
       final owner = r['owner_name'].toString();
-      map.putIfAbsent(owner, () => []).add(r);
+      map.putIfAbsent(owner, () => >[]).add(r);
     }
     setState(() => byOwner = map);
   }
@@ -225,7 +223,6 @@ class _OwnerWiseHyvaStatementTabState extends State<OwnerWiseHyvaStatementTab> {
   }
 }
 
-/// 2. ROYALTY ENTRY LIST HUB
 class RoyaltyListHubScreen extends StatelessWidget {
   const RoyaltyListHubScreen({super.key});
 
@@ -269,7 +266,7 @@ class _RoyaltyFilteredList extends StatefulWidget {
 
 class _RoyaltyFilteredListState extends State<_RoyaltyFilteredList> {
   DateTime selectedDate = DateTime.now();
-  List> rows = [];
+  List> rows = >[];
 
   @override
   void initState() {
