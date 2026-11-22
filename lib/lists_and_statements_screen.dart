@@ -50,7 +50,7 @@ class _HyvaFilteredList extends StatefulWidget {
 
 class _HyvaFilteredListState extends State<_HyvaFilteredList> {
   DateTime selectedDate = DateTime.now();
-  List> rows = >[];
+  RowList rows = <RowMap>[];
 
   @override
   void initState() {
@@ -165,7 +165,7 @@ class OwnerWiseHyvaStatementTab extends StatefulWidget {
 }
 
 class _OwnerWiseHyvaStatementTabState extends State<OwnerWiseHyvaStatementTab> {
-  Map<String, List>> byOwner = <String, List>>{};
+  Map<String, RowList> byOwner = <String, RowList>{};
 
   @override
   void initState() {
@@ -176,10 +176,10 @@ class _OwnerWiseHyvaStatementTabState extends State<OwnerWiseHyvaStatementTab> {
   Future<void> _load() async {
     final db = await AppDatabase.instance.database;
     final all = await db.query('hyva_entries', orderBy: 'id DESC');
-    final map = <String, List>>{};
+    final map = <String, RowList>{};
     for (final r in all) {
       final owner = r['owner_name'].toString();
-      map.putIfAbsent(owner, () => >[]).add(r);
+      map.putIfAbsent(owner, () => <RowMap>[]).add(r);
     }
     setState(() => byOwner = map);
   }
@@ -266,7 +266,7 @@ class _RoyaltyFilteredList extends StatefulWidget {
 
 class _RoyaltyFilteredListState extends State<_RoyaltyFilteredList> {
   DateTime selectedDate = DateTime.now();
-  List> rows = >[];
+  RowList rows = <RowMap>[];
 
   @override
   void initState() {
