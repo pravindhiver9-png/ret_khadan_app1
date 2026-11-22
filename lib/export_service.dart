@@ -7,34 +7,33 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
+import 'main.dart';
 
 class ExportService {
   static Future<pw.ThemeData> _loadHindiPdfTheme() async {
-    final regularData =
-        await rootBundle.load('assets/fonts/NotoSansDevanagari-Regular.ttf');
-    final boldData =
-        await rootBundle.load('assets/fonts/NotoSansDevanagari-Bold.ttf');
+    final regularData = await rootBundle.load('assets/fonts/NotoSansDevanagari-Regular.ttf');
+    final boldData = await rootBundle.load('assets/fonts/NotoSansDevanagari-Bold.ttf');
     final regularFont = pw.Font.ttf(regularData);
     final boldFont = pw.Font.ttf(boldData);
     return pw.ThemeData.withFont(base: regularFont, bold: boldFont);
   }
 
   static Future<void> exportHyvaPdf(
-    List> rows, {
+    RowList rows, {
     required String mode,
     required String headerSubtitle,
   }) async {
     final theme = await _loadHindiPdfTheme();
     final pdf = pw.Document(theme: theme);
 
-    final grouped = <String, List>>{};
+    final grouped = <String, RowList>{};
     for (final r in rows) {
       final d = r['entry_date'].toString();
-      grouped.putIfAbsent(d, () => >[]).add(r);
+      grouped.putIfAbsent(d, () => <RowMap>[]).add(r);
     }
 
     if (grouped.isEmpty) {
-      grouped[headerSubtitle] = >[];
+      grouped[headerSubtitle] = <RowMap>[];
     }
 
     for (final entry in grouped.entries) {
@@ -51,15 +50,12 @@ class ExportService {
               style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
             ),
             pw.Text(
-              mode == 'date'
-                  ? 'दिनांक: $dateHeading'
-                  : '$headerSubtitle \vert{} दिनांक: $dateHeading',
+              mode == 'date' ? 'दिनांक: $dateHeading' : '$headerSubtitle | दिनांक: $dateHeading',
               style: const pw.TextStyle(fontSize: 12),
             ),
             pw.SizedBox(height: 10),
             pw.TableHelper.fromTextArray(
-              headerStyle:
-                  pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9),
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9),
               cellStyle: const pw.TextStyle(fontSize: 8.5),
               headers: const [
                 'क्र.',
@@ -103,21 +99,21 @@ class ExportService {
   }
 
   static Future<void> exportRoyaltyPdf(
-    List> rows, {
+    RowList rows, {
     required String mode,
     required String headerSubtitle,
   }) async {
     final theme = await _loadHindiPdfTheme();
     final pdf = pw.Document(theme: theme);
 
-    final grouped = <String, List>>{};
+    final grouped = <String, RowList>{};
     for (final r in rows) {
       final d = r['entry_date'].toString();
-      grouped.putIfAbsent(d, () => >[]).add(r);
+      grouped.putIfAbsent(d, () => <RowMap>[]).add(r);
     }
 
     if (grouped.isEmpty) {
-      grouped[headerSubtitle] = >[];
+      grouped[headerSubtitle] = <RowMap>[];
     }
 
     for (final entry in grouped.entries) {
@@ -140,8 +136,7 @@ class ExportService {
             ),
             pw.SizedBox(height: 8),
             pw.TableHelper.fromTextArray(
-              headerStyle:
-                  pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
               cellStyle: const pw.TextStyle(fontSize: 8),
               headers: const [
                 'क्र.',
@@ -185,7 +180,7 @@ class ExportService {
 
   static Future<void> exportKharchPdf(
     String title,
-    List> rows,
+    RowList rows,
     String subtitle,
   ) async {
     final theme = await _loadHindiPdfTheme();
@@ -199,10 +194,7 @@ class ExportService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         build: (ctx) => [
-          pw.Text(
-            title,
-            style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-          ),
+          pw.Text(title, style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
           pw.Text(subtitle, style: const pw.TextStyle(fontSize: 12)),
           pw.SizedBox(height: 10),
           pw.TableHelper.fromTextArray(
@@ -210,7 +202,7 @@ class ExportService {
             data: List.generate(rows.length, (i) {
               final r = rows[i];
               final desc =
-                  '${r['person_name'] ?? ''} ${r['vehicle_no'] ?? ''}${r['sub_type'] ?? ''}'
+                  '${r['person_name'] ?? ''} ${r['vehicle_no'] ?? ''} ${r['sub_type'] ?? ''}'
                       .trim();
               return [
                 '${i + 1}',
@@ -235,10 +227,7 @@ class ExportService {
     );
   }
 
-  static Future<void> exportToExcel(
-    String sheetTitle,
-    List> rows,
-  ) async {
+  static Future<void> exportToExcel(String sheetTitle, RowList rows) async {
     final excel = Excel.createExcel();
     final sheet = excel['Sheet1'];
 
