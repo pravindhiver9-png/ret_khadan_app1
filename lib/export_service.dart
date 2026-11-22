@@ -17,7 +17,6 @@ class ExportService {
     return pw.ThemeData.withFont(base: regularFont, bold: boldFont);
   }
 
-  /// Hyva PDF: 9 Exact Columns + Date-wise once at top + Page Break per Date in Monthly/All
   static Future<void> exportHyvaPdf(
     List> rows, {
     required String mode,
@@ -29,11 +28,11 @@ class ExportService {
     final grouped = <String, List>>{};
     for (final r in rows) {
       final d = r['entry_date'].toString();
-      grouped.putIfAbsent(d, () => []).add(r);
+      grouped.putIfAbsent(d, () => >[]).add(r);
     }
 
     if (grouped.isEmpty) {
-      grouped[headerSubtitle] = [];
+      grouped[headerSubtitle] = >[];
     }
 
     for (final entry in grouped.entries) {
@@ -57,7 +56,7 @@ class ExportService {
             pw.TableHelper.fromTextArray(
               headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9),
               cellStyle: const pw.TextStyle(fontSize: 8.5),
-              headers: [
+              headers: <String>[
                 'क्र.',
                 'Vehicle No',
                 'Owner Name',
@@ -74,14 +73,14 @@ class ExportService {
                 final balText = (status == 'Partial' || status == 'Balance')
                     ? '₹${r['balance_amount']}'
                     : '-';
-                return [
+                return <String>[
                   '${i + 1}',
-                  r['vehicle_no'] ?? '',
-                  r['owner_name'] ?? '',
-                  r['driver_name'] ?? '',
-                  r['mobile_no'] ?? '',
+                  r['vehicle_no']?.toString() ?? '',
+                  r['owner_name']?.toString() ?? '',
+                  r['driver_name']?.toString() ?? '',
+                  r['mobile_no']?.toString() ?? '',
                   '₹${r['amount']}',
-                  r['dalal_name'] ?? '-',
+                  r['dalal_name']?.toString() ?? '-',
                   status,
                   balText,
                 ];
@@ -98,7 +97,6 @@ class ExportService {
     );
   }
 
-  /// Royalty PDF: 12 Exact Fields + Page Break per Date in Monthly/All
   static Future<void> exportRoyaltyPdf(
     List> rows, {
     required String mode,
@@ -110,10 +108,10 @@ class ExportService {
     final grouped = <String, List>>{};
     for (final r in rows) {
       final d = r['entry_date'].toString();
-      grouped.putIfAbsent(d, () => []).add(r);
+      grouped.putIfAbsent(d, () => >[]).add(r);
     }
 
-    if (grouped.isEmpty) grouped[headerSubtitle] = [];
+    if (grouped.isEmpty) grouped[headerSubtitle] = >[];
 
     for (final entry in grouped.entries) {
       final dateHeading = entry.key;
@@ -134,7 +132,7 @@ class ExportService {
             pw.TableHelper.fromTextArray(
               headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
               cellStyle: const pw.TextStyle(fontSize: 8),
-              headers: [
+              headers: <String>[
                 'क्र.',
                 'समय',
                 'घन मी.',
@@ -148,17 +146,17 @@ class ExportService {
                 'Amount',
               ],
               data: list.map((r) {
-                return [
+                return <String>[
                   '#${r['royalty_kramank']}',
-                  r['entry_time'] ?? '',
+                  r['entry_time']?.toString() ?? '',
                   '${r['ghan_meter']}',
-                  r['vehicle_no'] ?? '',
-                  r['owner_name'] ?? '',
-                  r['driver_name'] ?? '',
-                  r['mobile_no'] ?? '',
-                  r['royalty_receiver'] ?? '-',
-                  r['destination'] ?? '',
-                  r['royalty_cutter'] ?? '',
+                  r['vehicle_no']?.toString() ?? '',
+                  r['owner_name']?.toString() ?? '',
+                  r['driver_name']?.toString() ?? '',
+                  r['mobile_no']?.toString() ?? '',
+                  r['royalty_receiver']?.toString() ?? '-',
+                  r['destination']?.toString() ?? '',
+                  r['royalty_cutter']?.toString() ?? '',
                   '₹${r['amount']}',
                 ];
               }).toList(),
@@ -174,7 +172,6 @@ class ExportService {
     );
   }
 
-  /// Kharch PDF
   static Future<void> exportKharchPdf(
     String title,
     List> rows,
@@ -192,11 +189,11 @@ class ExportService {
           pw.Text(subtitle, style: const pw.TextStyle(fontSize: 12)),
           pw.SizedBox(height: 10),
           pw.TableHelper.fromTextArray(
-            headers: ['क्र.', 'दिनांक', 'विवरण / नाम / वाहन', 'राशि (₹)'],
+            headers: <String>['क्र.', 'दिनांक', 'विवरण / नाम / वाहन', 'राशि (₹)'],
             data: List.generate(rows.length, (i) {
               final r = rows[i];
               final desc = '${r['person_name'] ?? ''} ${r['vehicle_no'] ?? ''} ${r['sub_type'] ?? ''}'.trim();
-              return ['${i + 1}', r['entry_date'] ?? '', desc, '₹${r['amount']}'];
+              return <String>['${i + 1}', r['entry_date']?.toString() ?? '', desc, '₹${r['amount']}'];
             }),
           ),
           pw.SizedBox(height: 10),
@@ -214,7 +211,6 @@ class ExportService {
     );
   }
 
-  /// Excel Export & Share
   static Future<void> exportToExcel(String sheetTitle, List> rows) async {
     final excel = Excel.createExcel();
     final sheet = excel['Sheet1'];
