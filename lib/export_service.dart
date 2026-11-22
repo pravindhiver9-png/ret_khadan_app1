@@ -10,8 +10,10 @@ import 'package:share_plus/share_plus.dart';
 
 class ExportService {
   static Future<pw.ThemeData> _loadHindiPdfTheme() async {
-    final regularData = await rootBundle.load('assets/fonts/NotoSansDevanagari-Regular.ttf');
-    final boldData = await rootBundle.load('assets/fonts/NotoSansDevanagari-Bold.ttf');
+    final regularData =
+        await rootBundle.load('assets/fonts/NotoSansDevanagari-Regular.ttf');
+    final boldData =
+        await rootBundle.load('assets/fonts/NotoSansDevanagari-Bold.ttf');
     final regularFont = pw.Font.ttf(regularData);
     final boldFont = pw.Font.ttf(boldData);
     return pw.ThemeData.withFont(base: regularFont, bold: boldFont);
@@ -49,14 +51,17 @@ class ExportService {
               style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
             ),
             pw.Text(
-              mode == 'date' ? 'दिनांक: $dateHeading' : '$headerSubtitle | दिनांक: $dateHeading',
+              mode == 'date'
+                  ? 'दिनांक: $dateHeading'
+                  : '$headerSubtitle \vert{} दिनांक: $dateHeading',
               style: const pw.TextStyle(fontSize: 12),
             ),
             pw.SizedBox(height: 10),
             pw.TableHelper.fromTextArray(
-              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9),
+              headerStyle:
+                  pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9),
               cellStyle: const pw.TextStyle(fontSize: 8.5),
-              headers: <String>[
+              headers: const [
                 'क्र.',
                 'Vehicle No',
                 'Owner Name',
@@ -73,7 +78,7 @@ class ExportService {
                 final balText = (status == 'Partial' || status == 'Balance')
                     ? '₹${r['balance_amount']}'
                     : '-';
-                return <String>[
+                return [
                   '${i + 1}',
                   r['vehicle_no']?.toString() ?? '',
                   r['owner_name']?.toString() ?? '',
@@ -111,7 +116,9 @@ class ExportService {
       grouped.putIfAbsent(d, () => >[]).add(r);
     }
 
-    if (grouped.isEmpty) grouped[headerSubtitle] = >[];
+    if (grouped.isEmpty) {
+      grouped[headerSubtitle] = >[];
+    }
 
     for (final entry in grouped.entries) {
       final dateHeading = entry.key;
@@ -127,12 +134,16 @@ class ExportService {
               'Ret Khadan Management - Royalty Report',
               style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
             ),
-            pw.Text('दिनांक: $dateHeading ($headerSubtitle)', style: const pw.TextStyle(fontSize: 11)),
+            pw.Text(
+              'दिनांक: $dateHeading ($headerSubtitle)',
+              style: const pw.TextStyle(fontSize: 11),
+            ),
             pw.SizedBox(height: 8),
             pw.TableHelper.fromTextArray(
-              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
+              headerStyle:
+                  pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
               cellStyle: const pw.TextStyle(fontSize: 8),
-              headers: <String>[
+              headers: const [
                 'क्र.',
                 'समय',
                 'घन मी.',
@@ -146,7 +157,7 @@ class ExportService {
                 'Amount',
               ],
               data: list.map((r) {
-                return <String>[
+                return [
                   '#${r['royalty_kramank']}',
                   r['entry_time']?.toString() ?? '',
                   '${r['ghan_meter']}',
@@ -179,21 +190,34 @@ class ExportService {
   ) async {
     final theme = await _loadHindiPdfTheme();
     final pdf = pw.Document(theme: theme);
-    final total = rows.fold<double>(0, (s, e) => s + ((e['amount'] as num?) ?? 0).toDouble());
+    final total = rows.fold<double>(
+      0,
+      (s, e) => s + ((e['amount'] as num?) ?? 0).toDouble(),
+    );
 
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         build: (ctx) => [
-          pw.Text(title, style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+          pw.Text(
+            title,
+            style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+          ),
           pw.Text(subtitle, style: const pw.TextStyle(fontSize: 12)),
           pw.SizedBox(height: 10),
           pw.TableHelper.fromTextArray(
-            headers: <String>['क्र.', 'दिनांक', 'विवरण / नाम / वाहन', 'राशि (₹)'],
+            headers: const ['क्र.', 'दिनांक', 'विवरण / नाम / वाहन', 'राशि (₹)'],
             data: List.generate(rows.length, (i) {
               final r = rows[i];
-              final desc = '${r['person_name'] ?? ''} ${r['vehicle_no'] ?? ''} ${r['sub_type'] ?? ''}'.trim();
-              return <String>['${i + 1}', r['entry_date']?.toString() ?? '', desc, '₹${r['amount']}'];
+              final desc =
+                  '${r['person_name'] ?? ''} ${r['vehicle_no'] ?? ''}${r['sub_type'] ?? ''}'
+                      .trim();
+              return [
+                '${i + 1}',
+                r['entry_date']?.toString() ?? '',
+                desc,
+                '₹${r['amount']}',
+              ];
             }),
           ),
           pw.SizedBox(height: 10),
@@ -211,7 +235,10 @@ class ExportService {
     );
   }
 
-  static Future<void> exportToExcel(String sheetTitle, List> rows) async {
+  static Future<void> exportToExcel(
+    String sheetTitle,
+    List> rows,
+  ) async {
     final excel = Excel.createExcel();
     final sheet = excel['Sheet1'];
 
@@ -219,7 +246,9 @@ class ExportService {
       final keys = rows.first.keys.toList();
       sheet.appendRow(keys.map((k) => TextCellValue(k)).toList());
       for (final row in rows) {
-        sheet.appendRow(keys.map((k) => TextCellValue('${row[k] ?? ''}')).toList());
+        sheet.appendRow(
+          keys.map((k) => TextCellValue('${row[k] ?? ''}')).toList(),
+        );
       }
     }
 
