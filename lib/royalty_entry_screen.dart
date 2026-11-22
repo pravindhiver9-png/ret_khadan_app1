@@ -8,7 +8,7 @@ import 'package:sqflite/sqflite.dart';
 import 'main.dart';
 
 class RoyaltyEntryScreen extends StatefulWidget {
-  final Map<String, dynamic>? existingRoyalty;
+  final RowMap? existingRoyalty;
   const RoyaltyEntryScreen({super.key, this.existingRoyalty});
 
   @override
@@ -35,8 +35,8 @@ class _RoyaltyEntryScreenState extends State<RoyaltyEntryScreen> {
   String? _photoPath;
 
   List<String> _savedKhadans = <String>[];
-  List> _savedVehicles = >[];
-  List> _vehicleDrivers = >[];
+  RowList _savedVehicles = <RowMap>[];
+  RowList _vehicleDrivers = <RowMap>[];
   List<String> _savedDestinations = <String>[];
   List<String> _savedCutters = <String>[];
   List<String> _savedReceivers = <String>[];
@@ -207,7 +207,7 @@ class _RoyaltyEntryScreenState extends State<RoyaltyEntryScreen> {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
 
-    final data = {
+    final data = <String, dynamic>{
       'royalty_kramank': _kramank,
       'entry_date': dateStr,
       'entry_time': timeStr,
@@ -270,6 +270,212 @@ class _RoyaltyEntryScreenState extends State<RoyaltyEntryScreen> {
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: AppColors.earthBrown,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.calendar_today, size: 18),
+                          label: Text(DateFormat('dd MMM yyyy').format(_selectedDate)),
+                          onPressed: () async {
+                            final d = await showDatePicker(
+                              context: context,
+                              initialDate: _selectedDate,
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime(2035),
+                            );
+                            if (d != null) setState(() => _selectedDate = d);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.access_time, size: 18),
+                          label: Text(_selectedTime.format(context)),
+                          onPressed: () async {
+                            final t = await showTimePicker(
+                              context: context,
+                              initialTime: _selectedTime,
+                            );
+                            if (t != null) setState(() => _selectedTime = t);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _autoField(_khadanCtrl, lang.tr('खदान का नाम *', 'Khadan Name *'), _savedKhadans, true),
+                  const SizedBox(height: 12),
+                  _field(
+                    _ghanMeterCtrl,
+                    lang.tr('खनिज की मात्रा (घन मीटर / m³) *', 'Quantity (m³) *'),
+                    keyboard: const TextInputType.numberWithOptions(decimal: true),
+                    required: true,
+                  ),
+                  const SizedBox(height: 12),
+                  _autoField(
+                    _vehicleCtrl,
+                    lang.tr('गाड़ी नंबर *', 'Vehicle Number *'),
+                    _savedVehicles.map((e) => e['vehicle_no'].toString()).toList(),
+                    true,
+                    onSelected: _onVehicleSelected,
+                  ),
+                  const SizedBox(height: 12),
+                  _field(_ownerCtrl, lang.tr('गाड़ी मालिक का नाम', 'Owner Name')),
+                  const SizedBox(height: 12),
+                  _autoField(
+                    _driverCtrl,
+                    lang.tr('ड्राइवर का नाम *', 'Driver Name *'),
+                    _vehicleDrivers.map((e) => e['driver_name'].toString()).toList(),
+                    true,
+                    onSelected: (name) {
+                      final m = _vehicleDrivers.where(
+                        (d) => d['driver_name'].toString().toLowerCase() == name.toLowerCase(),
+                      );
+                      if (m.isNotEmpty) _mobileCtrl.text = m.first['mobile_no'].toString();
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _field(
+                    _mobileCtrl,
+                    lang.tr('ड्राइवर मोबाइल नंबर *', 'Driver Mobile *'),
+                    keyboard: TextInputType.phone,
+                    required: true,
+                  ),
+                  const SizedBox(height: 12),
+                  _autoField(
+                    _receiverCtrl,
+                    lang.tr('रॉयल्टी प्राप्तकर्ता का नाम (Optional)', 'Royalty Receiver (Optional)'),
+                    _savedReceivers,
+                    false,
+                  ),
+                  const SizedBox(height: 12),
+                  _autoField(
+                    _destinationCtrl,
+                    lang.tr('कहाँ जाएगी (Destination) *', 'Destination *'),
+                    _savedDestinations,
+                    true,
+                  ),
+                  const SizedBox(height: 12),
+                  _autoField(
+                    _cutterCtrl,
+                    lang.tr('रॉयल्टी देने/काटने वाले का नाम *', 'Royalty Issuer Name *'),
+                    _savedCutters,
+                    true,
+                  ),
+                  const SizedBox(height: 12),
+                  _field(
+                    _amountCtrl,
+                    lang.tr('रॉयल्टी रकम (Amount ₹) *', 'Royalty Amount (₹) *'),
+                    keyboard: TextInputType.number,
+                    required: true,
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(child: Text(lang.tr('रॉयल्टी फोटो (Optional)', 'Royalty Photo'))),
+                      IconButton(
+                        icon: const Icon(Icons.camera_alt, color: AppColors.earthBrown),
+                        onPressed: () => _pickPhoto(ImageSource.camera),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.photo_library, color: AppColors.earthBrown),
+                        onPressed: () => _pickPhoto(ImageSource.gallery),
+                      ),
+                      if (_photoPath != null)
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => setState(() => _photoPath = null),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 50,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.earthBrown,
+                  foregroundColor: AppColors.white,
+                ),
+                onPressed: _previewAndSave,
+                child: Text(
+                  lang.tr('Preview देखें और Save करें', 'Preview & Save'),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _field(
+    TextEditingController c,
+    String label, {
+    TextInputType keyboard = TextInputType.text,
+    bool required = false,
+  }) {
+    return TextFormField(
+      controller: c,
+      keyboardType: keyboard,
+      validator: required
+          ? (v) => (v == null || v.trim().isEmpty) ? lang.tr('आवश्यक है', 'Required') : null
+          : null,
+      decoration: InputDecoration(
+        labelText: label,
+        filled: true,
+        fillColor: AppColors.white,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  Widget _autoField(
+    TextEditingController ctrl,
+    String label,
+    List<String> options,
+    bool required, {
+    ValueChanged<String>? onSelected,
+  }) {
+    return Autocomplete<String>(
+      initialValue: TextEditingValue(text: ctrl.text),
+      optionsBuilder: (val) => val.text.isEmpty
+          ? options
+          : options.where((e) => e.toLowerCase().contains(val.text.toLowerCase())),
+      onSelected: (s) {
+        ctrl.text = s;
+        if (onSelected != null) onSelected(s);
+      },
+      fieldViewBuilder: (ctx, tc, fn, _) {
+        tc.addListener(() {
+          if (ctrl.text != tc.text) ctrl.text = tc.text;
+        });
+        return TextFormField(
+          controller: tc,
+          focusNode: fn,
+          validator: required
+              ? (v) => (v == null || v.trim().isEmpty) ? lang.tr('आवश्यक है', 'Required') : null
+              : null,
+          decoration: InputDecoration(
+            labelText: label,
+            filled: true,
+            fillColor: AppColors.white,
+            suffixIcon: const Icon(Icons.arrow_drop_down),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      },
+    );
+  }
+}
+                     color: AppColors.earthBrown,
                     ),
                   ),
                   const SizedBox(height: 10),
