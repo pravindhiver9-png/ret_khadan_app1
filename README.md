@@ -1,27 +1,20 @@
-# रेत खदान प्रबंधन ऐप
+# रेत खदान प्रबंधन (Ret Khadan Management)
 
-Flutter 3.50.0 के लिए प्रोजेक्ट। UI `material_ui` standalone package पर आधारित है; ऐप का रिकॉर्ड डेटा `shared_preferences` में फोन पर स्थानीय रूप से सेव होता है।
+Flutter app + GitHub Actions se APK build.
 
-## शामिल फाइलें
-- `lib/main.dart` — ऐप UI और मौजूदा रिकॉर्ड/फॉर्म फीचर्स
-- `pubspec.yaml` — Flutter और package dependencies
-- `test/widget_test.dart` — ऐप शुरू होने का widget test
-- `.github/workflows/build.yml` — GitHub Actions से analyze, test और release APK build
+## APK kaise banayein (mobile se bhi ho jata hai)
+1. GitHub par nayi repo banao (jaise `ret-khadan`).
+2. Is zip ki **saari files** repo me upload karo (folders ke saath: `.github`, `assets`, `lib`, `native`, `pubspec.yaml`).
+3. Repo ke **Actions** tab me "Build APK" chalega (ya "Run workflow" dabao). 5-8 minute lagte hain.
+4. Run poora hone par neeche **Artifacts → RetKhadan-APK** download karo, zip kholo, `app-release.apk` install karo.
 
-## GitHub पर उपयोग
-ZIP को extract करके इसके अंदर की सभी फाइलें repository के root में upload करें (अर्थात `pubspec.yaml` सीधे repository root में हो)। फिर `main` branch पर push करें या Actions में **Build Android APK** को manually चलाएं।
+## Folder
+- `assets/images/app_bg.jpg` – app background
+- `assets/images/pdf_bg.jpg` – PDF background (A4)
+- `assets/icon/app_icon.png` – app icon (build me automatically lag jata hai)
+- `assets/fonts/` – NotoSansDevanagari Regular + Bold
+- `native/MainActivity.kt` – PDF engine (Hindi sahi shape, text **selectable**)
+- `lib/` – app code (home, hyva, royalty, expense, ui, store, pdf)
 
-Workflow में Android platform files मौजूद न होने पर `flutter create --platforms=android .` चलाया जाता है।
-
-सफल build के बाद Actions run के Artifacts से `ret-khadan-release-apk` डाउनलोड करें।
-
-## Local commands
-```bash
-flutter pub get
-flutter analyze
-flutter test
-flutter build apk --release
-```
-
-## डेटा
-रिकॉर्ड SharedPreferences में इसी फोन पर सेव होते हैं। इस build में cloud sync, full Excel/PDF export, backup/restore और multi-device sync शामिल नहीं हैं।
+## PDF
+A4, pdf_bg background, Hindi font embedded, text asli text hai (select / copy / search hota hai), nayi tarikh = naya page.
