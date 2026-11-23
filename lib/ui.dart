@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'pdf.dart';
 import 'store.dart';
@@ -23,19 +24,29 @@ BoxDecoration neo({double r = 20, Color c = Colors.white}) => BoxDecoration(
       ],
     );
 
-InputDecoration dec(String l, {Widget? suffix}) {
+InputDecoration dec(String hint, {Widget? suffix}) {
   OutlineInputBorder b(Color c, double w) =>
       OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: c, width: w));
   return InputDecoration(
-    labelText: l,
+    hintText: hint,
+    hintStyle: const TextStyle(color: Color(0x8845413A), fontSize: 14),
     suffixIcon: suffix,
     filled: true,
     fillColor: Colors.white,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     border: b(Colors.transparent, 0),
     enabledBorder: b(const Color(0x22000000), 1),
     focusedBorder: b(kBrown, 1.5),
   );
 }
+
+Widget _fieldHeading(String title) => Padding(
+      padding: const EdgeInsets.only(bottom: 6, left: 2),
+      child: Text(
+        title,
+        style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: kBrown),
+      ),
+    );
 
 Widget bigBtn(String t, IconData i, VoidCallback f, {bool dark = true}) => InkWell(
       onTap: f,
@@ -121,6 +132,13 @@ class _FS extends State<FormPage> {
   final c = <String, TextEditingController>{};
   final fn = <String, FocusNode>{};
 
+  static final TextInputFormatter _upperFormatter = TextInputFormatter.withFunction(
+    (oldValue, newValue) => newValue.copyWith(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
+    ),
+  );
+
   @override
   void initState() {
     super.initState();
@@ -141,19 +159,40 @@ class _FS extends State<FormPage> {
   TextEditingController ctl(String k) => c.putIfAbsent(k, () => TextEditingController(text: '${v[k] ?? ''}'));
   FocusNode fnode(String k) => fn.putIfAbsent(k, () => FocusNode());
 
-  void set(String k, dynamic val) {
-    v[k] = val;
-    final t = c[k];
-    if (t != null && t.text != '${val ?? ''}') t.text = '${val ?? ''}';
+  bool _isVehicle(FD f) => f.k == 'vehicle';
+
+  TextCapitalization _capFor(FD f) {
+    if (_isVehicle(f)) return TextCapitalization.characters;
+    if (f.t == 'text' || f.t == 'sug' || f.t == 'note') return TextCapitalization.sentences;
+    return TextCapitalization.none;
   }
 
-  void change(String k, dynamic val) => setState(() {
-        v[k] = val;
-        widget.hook?.call(k, v, set);
-      });
+  List<TextInputFormatter>? _fmtFor(FD f) => _isVehicle(f) ? [_upperFormatter] : null;
+
+  void _goNext(BuildContext ctx) => FocusScope.of(ctx).nextFocus();
+
+  void set(String k, dynamic val) {
+    final finalVal = (k == 'vehicle' && val != null) ? '$val'.toUpperCase() : val;
+    v[k] = finalVal;
+    final t = c[k];
+    if (t != null && t.text != '${finalVal ?? ''}') {
+      t.value = TextEditingValue(
+        text: '${finalVal ?? ''}',
+        selection: TextSelection.collapsed(offset: '${finalVal ?? ''}'.length),
+      );
+    }
+  }
+
+  void change(String k, dynamic val) {
+    final finalVal = (k == 'vehicle' && val != null) ? '$val'.toUpperCase() : val;
+    setState(() {
+      v[k] = finalVal;
+      widget.hook?.call(k, v, set);
+    });
+  }
 
   bool vis(FD f) => f.show == null || f.show!(v);
-  Widget pad(Widget w) => Padding(padding: const EdgeInsets.only(bottom: 12), child: w);
+  Widget pad(Widget w) => Padding(padding: const EdgeInsets.only(bottom: 14), child: w);
 
   String valText(FD f) {
     final x = v[f.k];
@@ -228,73 +267,102 @@ class _FS extends State<FormPage> {
       case 'num':
       case 'phone':
       case 'note':
-        return pad(TextField(
-          controller: ctl(f.k),
-          keyboardType: f.t == 'num' ? const TextInputType.numberWithOptions(decimal: true) : f.t == 'phone' ? TextInputType.phone : TextInputType.text,
-          maxLines: f.t == 'note' ? 3 : 1,
-          decoration: dec(lbl),
-          onChanged: (s) => change(f.k, s),
-        ));
-      case 'sug':
-        return pad(RawAutocomplete<String>(
-          textEditingController: ctl(f.k),
-          focusNode: fnode(f.k),
-          optionsBuilder: (tv) {
-            final o = f.opts!(v);
-            final q = tv.text.trim().toLowerCase();
-            return q.isEmpty ? o : o.where((e) => e.toLowerCase().contains(q));
-          },
-          onSelected: (s) => change(f.k, s),
-          fieldViewBuilder: (ctx, tc, fnode, _) => TextField(
-            controller: tc,
-            focusNode: fnode,
-            decoration: dec(lbl, suffix: const Icon(Icons.arrow_drop_down)),
-            onChanged: (s) => change(f.k, s),
+        final isNote = f.t == 'note';
+        return pad(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _fieldHeading(lbl),
+          Builder(
+            builder: (ctx) => TextField(
+              controller: ctl(f.k),
+              keyboardType: f.t == 'num'
+                  ? const TextInputType.numberWithOptions(decimal: true)
+                  : f.t == 'phone'
+                      ? TextInputType.phone
+                      : TextInputType.text,
+              textCapitalization: _capFor(f),
+              inputFormatters: _fmtFor(f),
+              textInputAction: isNote ? TextInputAction.newline : TextInputAction.next,
+              onSubmitted: isNote ? null : (_) => _goNext(ctx),
+              maxLines: isNote ? 3 : 1,
+              decoration: dec(isNote ? 'यहाँ लिखें' : 'दर्ज करें'),
+              onChanged: (s) => change(f.k, s),
+            ),
           ),
-          optionsViewBuilder: (ctx, onSel, options) => Align(
-            alignment: Alignment.topLeft,
-            child: Material(
-              elevation: 4,
-              borderRadius: BorderRadius.circular(12),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: 220, maxWidth: MediaQuery.of(ctx).size.width - 40),
-                child: ListView(
-                  padding: EdgeInsets.zero,
-                  shrinkWrap: true,
-                  children: [for (final o in options) ListTile(dense: true, title: Text(o), onTap: () => onSel(o))],
+        ]));
+      case 'sug':
+        return pad(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _fieldHeading(lbl),
+          RawAutocomplete<String>(
+            textEditingController: ctl(f.k),
+            focusNode: fnode(f.k),
+            optionsBuilder: (tv) {
+              final o = f.opts!(v);
+              final q = tv.text.trim().toLowerCase();
+              return q.isEmpty ? o : o.where((e) => e.toLowerCase().contains(q));
+            },
+            onSelected: (s) {
+              change(f.k, s);
+              _goNext(context);
+            },
+            fieldViewBuilder: (ctx, tc, fnode, _) => TextField(
+              controller: tc,
+              focusNode: fnode,
+              textCapitalization: _capFor(f),
+              inputFormatters: _fmtFor(f),
+              textInputAction: TextInputAction.next,
+              onSubmitted: (_) => _goNext(ctx),
+              decoration: dec(_isVehicle(f) ? 'जैसे CG07...' : 'चुनें या लिखें', suffix: const Icon(Icons.arrow_drop_down)),
+              onChanged: (s) => change(f.k, s),
+            ),
+            optionsViewBuilder: (ctx, onSel, options) => Align(
+              alignment: Alignment.topLeft,
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(12),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: 220, maxWidth: MediaQuery.of(ctx).size.width - 40),
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    shrinkWrap: true,
+                    children: [for (final o in options) ListTile(dense: true, title: Text(o), onTap: () => onSel(o))],
+                  ),
                 ),
               ),
             ),
           ),
-        ));
+        ]));
       case 'date':
-        return pad(InkWell(
-          onTap: () async {
-            final d = await showDatePicker(context: context, initialDate: dparse(v[f.k]), firstDate: DateTime(2020), lastDate: DateTime(2100));
-            if (d != null) change(f.k, dkey(d));
-          },
-          child: InputDecorator(decoration: dec(lbl, suffix: const Icon(Icons.calendar_today, size: 20)), child: Text(dShow(v[f.k]))),
-        ));
+        return pad(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _fieldHeading(lbl),
+          InkWell(
+            onTap: () async {
+              final d = await showDatePicker(context: context, initialDate: dparse(v[f.k]), firstDate: DateTime(2020), lastDate: DateTime(2100));
+              if (d != null) change(f.k, dkey(d));
+            },
+            child: InputDecorator(decoration: dec('तारीख चुनें', suffix: const Icon(Icons.calendar_today, size: 20)), child: Text(dShow(v[f.k]))),
+          ),
+        ]));
       case 'time':
         final has = '${v[f.k] ?? ''}'.isNotEmpty;
-        return pad(InkWell(
-          onTap: () async {
-            final p = '${v[f.k] ?? tnow()}'.split(':');
-            final t = await showTimePicker(context: context, initialTime: TimeOfDay(hour: int.parse(p[0]), minute: int.parse(p[1])));
-            if (t != null) change(f.k, '${two(t.hour)}:${two(t.minute)}');
-          },
-          child: InputDecorator(
-            decoration: dec(lbl,
-                suffix: has && !f.req
-                    ? IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => change(f.k, ''))
-                    : const Icon(Icons.access_time, size: 20)),
-            child: Text(has ? tShow(v[f.k]) : '—'),
+        return pad(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _fieldHeading(lbl),
+          InkWell(
+            onTap: () async {
+              final p = '${v[f.k] ?? tnow()}'.split(':');
+              final t = await showTimePicker(context: context, initialTime: TimeOfDay(hour: int.parse(p[0]), minute: int.parse(p[1])));
+              if (t != null) change(f.k, '${two(t.hour)}:${two(t.minute)}');
+            },
+            child: InputDecorator(
+              decoration: dec('समय चुनें',
+                  suffix: has && !f.req
+                      ? IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => change(f.k, ''))
+                      : const Icon(Icons.access_time, size: 20)),
+              child: Text(has ? tShow(v[f.k]) : '—'),
+            ),
           ),
-        ));
+        ]));
       case 'pick':
         return pad(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(lbl, style: const TextStyle(color: kBrown)),
-          const SizedBox(height: 6),
+          _fieldHeading(lbl),
           Wrap(spacing: 8, children: [
             for (final o in f.opts!(v)) ChoiceChip(label: Text(o), selected: v[f.k] == o, onSelected: (_) => change(f.k, o)),
           ]),
@@ -303,8 +371,7 @@ class _FS extends State<FormPage> {
         final o = f.opts!(v);
         final sel = List<String>.from((v[f.k] ?? []) as List);
         return pad(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(lbl, style: const TextStyle(color: kBrown)),
-          const SizedBox(height: 6),
+          _fieldHeading(lbl),
           if (o.isEmpty) const Text('पहले ऊपर नाम भरें', style: TextStyle(fontSize: 13)),
           Wrap(spacing: 8, children: [
             for (final x in o)
@@ -330,7 +397,7 @@ class _FS extends State<FormPage> {
       case 'photo':
         final p = '${v[f.k] ?? ''}';
         return pad(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(f.label, style: const TextStyle(color: kBrown)),
+          _fieldHeading(f.label),
           Row(children: [
             TextButton.icon(onPressed: () => pickPhoto(f.k, ImageSource.camera), icon: const Icon(Icons.photo_camera), label: const Text('कैमरा')),
             TextButton.icon(onPressed: () => pickPhoto(f.k, ImageSource.gallery), icon: const Icon(Icons.photo_library), label: const Text('गैलरी')),
@@ -347,10 +414,11 @@ class _FS extends State<FormPage> {
         while (ps.length < cnt) {
           ps.add({'n': '', 'c': ''});
         }
-        return pad(Column(children: [
+        return pad(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _fieldHeading('कितने लोग आए'),
           DropdownButtonFormField<int>(
             value: cnt,
-            decoration: dec('कितने लोग आए'),
+            decoration: dec('संख्या चुनें'),
             items: [for (var i = 1; i <= 15; i++) DropdownMenuItem(value: i, child: Text('$i'))],
             onChanged: (x) => change('cnt', x ?? 1),
           ),
@@ -359,9 +427,33 @@ class _FS extends State<FormPage> {
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(children: [
-                Expanded(child: TextFormField(key: ValueKey('pn$i'), initialValue: '${ps[i]['n']}', decoration: dec('नाम ${i + 1} (वैकल्पिक)'), onChanged: (s) => ps[i]['n'] = s)),
+                Expanded(
+                  child: Builder(
+                    builder: (ctx) => TextFormField(
+                      key: ValueKey('pn$i'),
+                      initialValue: '${ps[i]['n']}',
+                      textCapitalization: TextCapitalization.sentences,
+                      textInputAction: TextInputAction.next,
+                      onFieldSubmitted: (_) => _goNext(ctx),
+                      decoration: dec('नाम ${i + 1} (वैकल्पिक)'),
+                      onChanged: (s) => ps[i]['n'] = s,
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 8),
-                Expanded(child: TextFormField(key: ValueKey('pc$i'), initialValue: '${ps[i]['c']}', decoration: dec('चैनल / प्रेस'), onChanged: (s) => ps[i]['c'] = s)),
+                Expanded(
+                  child: Builder(
+                    builder: (ctx) => TextFormField(
+                      key: ValueKey('pc$i'),
+                      initialValue: '${ps[i]['c']}',
+                      textCapitalization: TextCapitalization.sentences,
+                      textInputAction: TextInputAction.next,
+                      onFieldSubmitted: (_) => _goNext(ctx),
+                      decoration: dec('चैनल / प्रेस'),
+                      onChanged: (s) => ps[i]['c'] = s,
+                    ),
+                  ),
+                ),
               ]),
             ),
         ]));
@@ -439,14 +531,14 @@ class RngBar extends StatelessWidget {
 
 class RecordList extends StatefulWidget {
   final String title, pdfName;
-  final List<Map<String, dynamic>> Function() source;
+  final List> Function() source;
   final List<String> cols;
   final List<double> w;
   final List<String> Function(Map<String, dynamic> r, int i) row;
   final String Function(Map<String, dynamic> r) tTitle, tSub, tAmt;
   final Future<void> Function(Map<String, dynamic>? r) edit;
   final Future<void> Function(Map<String, dynamic> r) del;
-  final List<String> Function(List<Map<String, dynamic>> recs)? notes;
+  final List<String> Function(List> recs)? notes;
   final List<Widget> extras;
   const RecordList({
     super.key, required this.title, required this.pdfName, required this.source, required this.cols, required this.w,
@@ -462,7 +554,7 @@ class _RL extends State<RecordList> {
 
   int cmp(Map a, Map b) => '${b['date']} ${b['time'] ?? ''} ${b['id']}'.compareTo('${a['date']} ${a['time'] ?? ''} ${a['id']}');
 
-  Map<String, List<Map<String, dynamic>>> groups(bool asc) {
+  Map<String, List>> groups(bool asc) {
     final l = widget.source().where((r) => rng.ok(r['date'])).toList()..sort(cmp);
     final dates = l.map((r) => '${r['date']}').toSet().toList()..sort();
     if (!asc) dates.sort((a, b) => b.compareTo(a));
