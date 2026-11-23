@@ -57,7 +57,7 @@ List<FD> hyvaFields() => [
       FD('status', 'भुगतान की स्थिति', 'pick', req: true, opts: (v) => ['Paid', 'Partial', 'Balance', 'Free']),
       FD('received', 'प्राप्त रकम (₹)', 'num', show: (v) => _st(v, ['Partial'])),
       FD('balance', 'बाकी रकम – Balance (₹)', 'num', show: (v) => _st(v, ['Partial', 'Balance'])),
-      FD('dalal', 'गाड़ी भेजने वाले दलाल का नाम (वैकल्पिक)', 'sug', opts: (v) => S.names('dalal')),
+      FD('dalal', 'गाड़ी भेजने वाले का नाम (वैकल्पिक)', 'sug', opts: (v) => S.names('dalal')),
       FD('note', 'नोट (FREE हो तो कारण ज़रूर लिखें)', 'note'),
       FD('photo', 'हाइवा फोटो (वैकल्पिक)', 'photo'),
     ];
@@ -168,13 +168,13 @@ Future<String?> _saveHyva(BuildContext c, Map<String, dynamic> v) async {
 String _bal(Map r) => (r['status'] == 'Partial' || r['status'] == 'Balance') ? rs(nv(r['balance'])) : '-';
 String _n(dynamic x) => '${x ?? ''}'.trim().isEmpty ? '-' : '$x';
 
-const _cols = ['क्र.', 'गाड़ी नंबर', 'मालिक', 'ड्राइवर', 'मोबाइल', 'राशि', 'दलाल', 'स्थिति', 'बाकी'];
+const _cols = ['क्र.', 'गाड़ी नंबर', 'मालिक', 'ड्राइवर', 'मोबाइल', 'राशि', 'भेजने वाला', 'स्थिति', 'बाकी'];
 const _w = <double>[24, 70, 62, 56, 58, 44, 46, 40, 44];
 
 List<String> hyvaRow(Map<String, dynamic> r, int i) =>
     ['${i + 1}', '${r['vehicle']}', _n(r['owner']), _n(r['driver']), _n(r['mobile']), rs(nv(r['amount'])), _n(r['dalal']), '${r['status']}', _bal(r)];
 
-List<String> hyvaNotes(List<Map<String, dynamic>> l) {
+List<String> hyvaNotes(List> l) {
   final nf = l.where((r) => r['status'] != 'Free');
   return ['कुल राशि: ${rs(nf.fold<num>(0, (a, r) => a + nv(r['amount'])))}   |   कुल बाकी: ${rs(nf.fold<num>(0, (a, r) => a + nv(r['balance'])))}   |   गाड़ियाँ: ${l.length}'];
 }
@@ -206,19 +206,19 @@ class HyvaList extends StatelessWidget {
 }
 
 // ---------- Owner wise statement ----------
-Map<String, List<Map<String, dynamic>>> _byOwner() {
-  final m = <String, List<Map<String, dynamic>>>{};
+Map<String, List>> _byOwner() {
+  final m = <String, List>>{};
   for (final r in S.list('hyva')) {
     m.putIfAbsent(_n(r['owner']), () => []).add(r);
   }
   return Map.fromEntries(m.entries.toList()..sort((a, b) => a.key.compareTo(b.key)));
 }
 
-Sec _ownerSec(String o, List<Map<String, dynamic>> l) {
+Sec _ownerSec(String o, List> l) {
   final s = [...l]..sort((a, b) => '${a['date']}${a['time']}'.compareTo('${b['date']}${b['time']}'));
   return Sec(
     'मालिक: $o',
-    ['क्र.', 'दिनांक', 'गाड़ी नंबर', 'ड्राइवर', 'मोबाइल', 'राशि', 'दलाल', 'स्थिति', 'बाकी'],
+    ['क्र.', 'दिनांक', 'गाड़ी नंबर', 'ड्राइवर', 'मोबाइल', 'राशि', 'भेजने वाला', 'स्थिति', 'बाकी'],
     const [24, 62, 66, 56, 58, 44, 46, 40, 44],
     [for (var i = 0; i < s.length; i++) ['${i + 1}', dShow(s[i]['date']), '${s[i]['vehicle']}', _n(s[i]['driver']), _n(s[i]['mobile']), rs(nv(s[i]['amount'])), _n(s[i]['dalal']), '${s[i]['status']}', _bal(s[i])]],
     hyvaNotes(s),
