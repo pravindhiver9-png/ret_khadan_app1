@@ -52,7 +52,8 @@ List<FD> hyvaFields() => [
       FD('date', 'दिनांक', 'date', req: true),
       FD('time', 'समय', 'time', req: true),
       FD('rate', 'लोडिंग दर (₹)', 'num'),
-      FD('vehicle', 'गाड़ी नंबर', 'sug', req: true, opts: (v) => S.vehicleNames()),
+      FD('vehicle', 'गाड़ी नंबर', 'sug',
+          req: true, opts: (v) => S.vehicleNames()),
       FD('owner', 'गाड़ी मालिक का नाम', 'text', req: true),
       FD(
         'driver',
@@ -180,7 +181,7 @@ Future<void> openHyva(BuildContext ctx, [Map<String, dynamic>? old]) async {
       'roy': false,
     });
   } else {
-    final o = old;
+    final o = old!;
     init['rate0'] = o['rate'];
     final lk = S.list('royalty').where((x) => x['hyvaId'] == o['id']).toList();
     if (lk.isNotEmpty) {
@@ -243,7 +244,8 @@ Future<String?> _saveHyva(BuildContext c, Map<String, dynamic> v) async {
   if (v['status'] == 'Free' && '${v['note'] ?? ''}'.trim().isEmpty) {
     return 'FREE का कारण Note में लिखें';
   }
-  if ('${v['rate'] ?? ''}'.trim().isNotEmpty && nv(v['rate']) != nv(v['rate0'])) {
+  if ('${v['rate'] ?? ''}'.trim().isNotEmpty &&
+      nv(v['rate']) != nv(v['rate0'])) {
     final ch = await showDialog<String>(
       context: c,
       builder: (dc) => AlertDialog(
@@ -306,10 +308,9 @@ Future<String?> _saveHyva(BuildContext c, Map<String, dynamic> v) async {
   return null;
 }
 
-String _bal(Map r) =>
-    (r['status'] == 'Partial' || r['status'] == 'Balance')
-        ? rs(nv(r['balance']))
-        : '-';
+String _bal(Map r) => (r['status'] == 'Partial' || r['status'] == 'Balance')
+    ? rs(nv(r['balance']))
+    : '-';
 String _n(dynamic x) => '${x ?? ''}'.trim().isEmpty ? '-' : '$x';
 
 const _cols = <String>[
@@ -337,7 +338,7 @@ List<String> hyvaRow(Map<String, dynamic> r, int i) => <String>[
       _bal(r),
     ];
 
-List<String> hyvaNotes(List> l) {
+List<String> hyvaNotes(List<Map<String, dynamic>> l) {
   final nf = l.where((r) => r['status'] != 'Free');
   return [
     'कुल राशि: ${rs(nf.fold<num>(0, (a, r) => a + nv(r['amount'])))}   |   कुल बाकी: ${rs(nf.fold<num>(0, (a, r) => a + nv(r['balance'])))}   |   गाड़ियाँ: ${l.length}'
@@ -376,19 +377,19 @@ class HyvaList extends StatelessWidget {
 }
 
 // ---------- Owner wise statement ----------
-Map<String, List>> _byOwner() {
-  final m = <String, List>>{};
+Map<String, List<Map<String, dynamic>>> _byOwner() {
+  final m = <String, List<Map<String, dynamic>>>{};
   for (final r in S.list('hyva')) {
-    m.putIfAbsent(_n(r['owner']), () => >[]).add(r);
+    m.putIfAbsent(_n(r['owner']), () => <Map<String, dynamic>>[]).add(r);
   }
   return Map.fromEntries(
     m.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
   );
 }
 
-Sec _ownerSec(String o, List> l) {
-  final s = >[...l]
-    ..sort((a, b) => '${a['date']}${a['time']}'.compareTo('${b['date']}${b['time']}'));
+Sec _ownerSec(String o, List<Map<String, dynamic>> l) {
+  final s = <Map<String, dynamic>>[...l]..sort((a, b) =>
+      '${a['date']}${a['time']}'.compareTo('${b['date']}${b['time']}'));
   return Sec(
     'मालिक: $o',
     <String>[
@@ -485,15 +486,20 @@ class OwnerPage extends StatelessWidget {
               IconButton(
                 tooltip: 'सभी मालिकों का PDF',
                 icon: const Icon(Icons.picture_as_pdf),
-                onPressed: () => guard(
-                  context,
-                  () => sharePdf(
-                    'hyva_owner_all',
-                    'Owner Wise Hyva Statement',
-                    'सभी मालिक',
-                    [for (final e in m.entries) _ownerSec(e.key, e.value)],
-                  ),
-                ),
+                onPressed: m.isEmpty
+                    ? null
+                    : () => guard(
+                          context,
+                          () => sharePdf(
+                            'hyva_owner_all',
+                            'Owner Wise Hyva Statement',
+                            'सभी मालिक',
+                            [
+                              for (final e in m.entries)
+                                _ownerSec(e.key, e.value)
+                            ],
+                          ),
+                        ),
               ),
             ],
           );
@@ -516,12 +522,12 @@ class _OD extends State<OwnerDetail> {
   Widget build(BuildContext context) => ListenableBuilder(
         listenable: S,
         builder: (_, __) {
-          final all = >[...(_byOwner()[widget.owner] ?? [])]
-            ..sort((a, b) =>
-                '${b['date']}${b['time']}'.compareTo('${a['date']}${a['time']}'));
-          final l = f == 'सभी'
-              ? all
-              : all.where((r) => r['status'] == f).toList();
+          final all = <Map<String, dynamic>>[
+            ...(_byOwner()[widget.owner] ?? <Map<String, dynamic>>[])
+          ]..sort((a, b) => '${b['date']}${b['time']}'
+              .compareTo('${a['date']}${a['time']}'));
+          final l =
+              f == 'सभी' ? all : all.where((r) => r['status'] == f).toList();
           return Pg(
             widget.owner,
             Column(
@@ -531,7 +537,13 @@ class _OD extends State<OwnerDetail> {
                   child: Wrap(
                     spacing: 8,
                     children: [
-                      for (final x in ['सभी', 'Paid', 'Partial', 'Balance', 'Free'])
+                      for (final x in [
+                        'सभी',
+                        'Paid',
+                        'Partial',
+                        'Balance',
+                        'Free'
+                      ])
                         ChoiceChip(
                           label: Text(x),
                           selected: f == x,
@@ -554,7 +566,8 @@ class _OD extends State<OwnerDetail> {
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         '${r['vehicle']} · ${dShow(r['date'])}',
@@ -582,10 +595,11 @@ class _OD extends State<OwnerDetail> {
                             ),
                           ),
                         ),
-                      Text(
-                        hyvaNotes(all).first,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
+                      if (all.isNotEmpty)
+                        Text(
+                          hyvaNotes(all).first,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
                     ],
                   ),
                 ),
@@ -594,15 +608,17 @@ class _OD extends State<OwnerDetail> {
             actions: [
               IconButton(
                 icon: const Icon(Icons.picture_as_pdf),
-                onPressed: () => guard(
-                  context,
-                  () => sharePdf(
-                    'hyva_owner',
-                    'Owner Wise Hyva Statement',
-                    widget.owner,
-                    [_ownerSec(widget.owner, all)],
-                  ),
-                ),
+                onPressed: all.isEmpty
+                    ? null
+                    : () => guard(
+                          context,
+                          () => sharePdf(
+                            'hyva_owner',
+                            'Owner Wise Hyva Statement',
+                            widget.owner,
+                            [_ownerSec(widget.owner, all)],
+                          ),
+                        ),
               ),
             ],
           );
