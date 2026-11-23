@@ -49,7 +49,7 @@ class Home extends StatelessWidget {
           final ex = S.list('expense').where((r) => r['date'] == t).toList();
           final roT = ro.fold<num>(0, (a, r) => a + nv(r['amount']));
           final exT = ex.fold<num>(0, (a, r) => a + nv(r['amount']));
-          final recent = <Map<String, dynamic>>[
+          final recent = >[
             for (final r in S.list('hyva')) {...r, '_k': 'hyva'},
             for (final r in S.list('royalty')) {...r, '_k': 'royalty'},
             for (final r in S.list('expense')) {...r, '_k': 'expense'},
@@ -66,7 +66,7 @@ class Home extends StatelessWidget {
                     const Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text('Ret Khadan Management', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
-                        Text('रेत खदान प्रबंधन', style: TextStyle(color: kBrown)),
+                        Text('रेत खदान प्रबंधन', style: const TextStyle(color: kBrown)),
                       ]),
                     ),
                     IconButton(icon: const Icon(Icons.settings, color: kBrown), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BackupPage()))),
