@@ -98,6 +98,7 @@ class Pg extends StatelessWidget {
   final Widget body;
   final List<Widget>? actions;
   final Widget? fab;
+
   const Pg(this.title, this.body, {super.key, this.actions, this.fab});
 
   @override
@@ -122,7 +123,8 @@ class Pg extends StatelessWidget {
                 cacheWidth: 900,
               ),
             ),
-            const Positioned.fill(child: ColoredBox(color: Color(0xB3F3E9D7))),
+            const Positioned.fill(
+                child: ColoredBox(color: Color(0xB3F3E9D7))),
             SafeArea(child: body),
           ],
         ),
@@ -130,11 +132,13 @@ class Pg extends StatelessWidget {
 }
 
 // ---------------- Generic form engine ----------------
+
 class FD {
   final String k, label, t;
   final bool req;
   final List<String> Function(Map<String, dynamic> v)? opts;
   final bool Function(Map<String, dynamic> v)? show;
+
   FD(this.k, this.label, this.t, {this.req = false, this.opts, this.show});
 }
 
@@ -158,6 +162,7 @@ void vehHook(
       }
     }
   }
+
   if (k == 'driver') {
     for (final d in S.driversOf(v['vehicle'] ?? '')) {
       if (d['n'] == v['driver'] && '${d['m']}'.isNotEmpty) {
@@ -172,7 +177,9 @@ class FormPage extends StatefulWidget {
   final List<FD> fields;
   final Map<String, dynamic> init;
   final Hook? hook;
-  final Future<String?> Function(BuildContext c, Map<String, dynamic> v) onSave;
+  final Future<String?> Function(BuildContext c, Map<String, dynamic> v)
+      onSave;
+
   const FormPage({
     super.key,
     required this.title,
@@ -221,6 +228,7 @@ class _FS extends State<FormPage> {
 
   TextEditingController ctl(String k) =>
       c.putIfAbsent(k, () => TextEditingController(text: '${v[k] ?? ''}'));
+
   FocusNode fnode(String k) => fn.putIfAbsent(k, () => FocusNode());
 
   bool _isVehicle(FD f) => f.k == 'vehicle';
@@ -237,21 +245,28 @@ class _FS extends State<FormPage> {
       _isVehicle(f) ? [_upperFormatter] : null;
 
   void _goNext(BuildContext ctx) => FocusScope.of(ctx).nextFocus();
+  void _hideKb() => FocusManager.instance.primaryFocus?.unfocus();
 
   void set(String k, dynamic val) {
-    final finalVal = (k == 'vehicle' && val != null) ? '$val'.toUpperCase() : val;
+    final finalVal =
+        (k == 'vehicle' && val != null) ? '$val'.toUpperCase() : val;
+
     v[k] = finalVal;
     final t = c[k];
+
     if (t != null && t.text != '${finalVal ?? ''}') {
       t.value = TextEditingValue(
         text: '${finalVal ?? ''}',
-        selection: TextSelection.collapsed(offset: '${finalVal ?? ''}'.length),
+        selection:
+            TextSelection.collapsed(offset: '${finalVal ?? ''}'.length),
       );
     }
   }
 
   void change(String k, dynamic val) {
-    final finalVal = (k == 'vehicle' && val != null) ? '$val'.toUpperCase() : val;
+    final finalVal =
+        (k == 'vehicle' && val != null) ? '$val'.toUpperCase() : val;
+
     setState(() {
       v[k] = finalVal;
       widget.hook?.call(k, v, set);
@@ -259,25 +274,34 @@ class _FS extends State<FormPage> {
   }
 
   bool vis(FD f) => f.show == null || f.show!(v);
-  Widget pad(Widget w) => Padding(padding: const EdgeInsets.only(bottom: 14), child: w);
+
+  Widget pad(Widget w) =>
+      Padding(padding: const EdgeInsets.only(bottom: 14), child: w);
 
   String valText(FD f) {
     final x = v[f.k];
+
     if (f.t == 'date') return dShow(x);
     if (f.t == 'time') return tShow(x);
     if (f.t == 'check') return x == true ? 'हाँ' : 'नहीं';
     if (f.t == 'multi') return ((x ?? []) as List).join(', ');
+
     if (f.t == 'people') {
       return ((v['people'] ?? []) as List)
           .take((v['cnt'] ?? 1) as int)
           .map((p) => '${p['n']} (${p['c']})')
           .join('; ');
     }
-    if (f.t == 'photo') return x == null || '$x'.isEmpty ? 'नहीं' : 'है';
+
+    if (f.t == 'photo') {
+      return x == null || '$x'.isEmpty ? 'नहीं' : 'है';
+    }
+
     return '${x ?? ''}';
   }
 
   Future<void> submit() async {
+    _hideKb();
     for (final f in widget.fields) {
       if (vis(f) && f.req && '${v[f.k] ?? ''}'.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -286,6 +310,7 @@ class _FS extends State<FormPage> {
         return;
       }
     }
+
     final ok = await showDialog<bool>(
       context: context,
       builder: (dc) => AlertDialog(
@@ -309,7 +334,8 @@ class _FS extends State<FormPage> {
                         ),
                         TextSpan(
                           text: valText(f),
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                          style:
+                              const TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ]),
                     ),
@@ -329,26 +355,36 @@ class _FS extends State<FormPage> {
         ],
       ),
     );
+
     if (ok != true || !mounted) return;
+
     final err = await widget.onSave(context, v);
+
     if (!mounted) return;
+
     if (err != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(err)),
+      );
     } else {
       Navigator.pop(context, true);
     }
   }
 
   Future<void> pickPhoto(String k, ImageSource s) async {
+    _hideKb();
     final x = await ImagePicker()
         .pickImage(source: s, imageQuality: 70, maxWidth: 1600);
+
     if (x == null) return;
+
     final p = await S.keepPhoto(x.path);
     change(k, p);
   }
 
   Widget field(FD f) {
     final lbl = f.label + (f.req ? ' *' : '');
+
     switch (f.t) {
       case 'sec':
         return Padding(
@@ -362,6 +398,7 @@ class _FS extends State<FormPage> {
             ),
           ),
         );
+
       case 'info':
         return pad(
           Container(
@@ -373,11 +410,13 @@ class _FS extends State<FormPage> {
             ),
           ),
         );
+
       case 'text':
       case 'num':
       case 'phone':
       case 'note':
         final isNote = f.t == 'note';
+
         return pad(
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -404,19 +443,20 @@ class _FS extends State<FormPage> {
             ],
           ),
         );
+
       case 'sug':
-        final mainCtl = ctl(f.k);
         return pad(
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               fieldHeading(lbl),
               RawAutocomplete<String>(
-                textEditingController: mainCtl,
+                textEditingController: ctl(f.k),
                 focusNode: fnode(f.k),
                 optionsBuilder: (tv) {
                   final o = f.opts!(v);
                   final q = tv.text.trim().toLowerCase();
+
                   return q.isEmpty
                       ? o
                       : o.where((e) => e.toLowerCase().contains(q));
@@ -425,27 +465,19 @@ class _FS extends State<FormPage> {
                   change(f.k, s);
                   _goNext(context);
                 },
-                fieldViewBuilder: (ctx, tc, fnode, _) {
-                  if (tc.text != mainCtl.text) {
-                    tc.value = mainCtl.value;
-                  }
-                  return TextField(
-                    controller: tc,
-                    focusNode: fnode,
-                    textCapitalization: _capFor(f),
-                    inputFormatters: _fmtFor(f),
-                    textInputAction: TextInputAction.next,
-                    onSubmitted: (_) => _goNext(ctx),
-                    decoration: dec(
-                      _isVehicle(f) ? 'जैसे CG07...' : 'चुनें या लिखें',
-                      suffix: const Icon(Icons.arrow_drop_down),
-                    ),
-                    onChanged: (s) {
-                      if (mainCtl.text != s) mainCtl.text = s;
-                      change(f.k, s);
-                    },
-                  );
-                },
+                fieldViewBuilder: (ctx, tc, fnode, _) => TextField(
+                  controller: tc,
+                  focusNode: fnode,
+                  textCapitalization: _capFor(f),
+                  inputFormatters: _fmtFor(f),
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => _goNext(ctx),
+                  decoration: dec(
+                    _isVehicle(f) ? 'जैसे CG07...' : 'चुनें या लिखें',
+                    suffix: const Icon(Icons.arrow_drop_down),
+                  ),
+                  onChanged: (s) => change(f.k, s),
+                ),
                 optionsViewBuilder: (ctx, onSel, options) => Align(
                   alignment: Alignment.topLeft,
                   child: Material(
@@ -475,6 +507,7 @@ class _FS extends State<FormPage> {
             ],
           ),
         );
+
       case 'date':
         return pad(
           Column(
@@ -483,12 +516,14 @@ class _FS extends State<FormPage> {
               fieldHeading(lbl),
               InkWell(
                 onTap: () async {
+                  _hideKb();
                   final d = await showDatePicker(
                     context: context,
                     initialDate: dparse(v[f.k]),
                     firstDate: DateTime(2020),
                     lastDate: DateTime(2100),
                   );
+
                   if (d != null) change(f.k, dkey(d));
                 },
                 child: InputDecorator(
@@ -502,8 +537,10 @@ class _FS extends State<FormPage> {
             ],
           ),
         );
+
       case 'time':
         final has = '${v[f.k] ?? ''}'.isNotEmpty;
+
         return pad(
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -511,7 +548,9 @@ class _FS extends State<FormPage> {
               fieldHeading(lbl),
               InkWell(
                 onTap: () async {
-                  final p = '${v[f.k] ?? tnow()}'.split(':');
+                  _hideKb();
+                  final p = '${has ? v[f.k] : tnow()}'.split(':');
+
                   final t = await showTimePicker(
                     context: context,
                     initialTime: TimeOfDay(
@@ -519,7 +558,10 @@ class _FS extends State<FormPage> {
                       minute: int.parse(p[1]),
                     ),
                   );
-                  if (t != null) change(f.k, '${two(t.hour)}:${two(t.minute)}');
+
+                  if (t != null) {
+                    change(f.k, '${two(t.hour)}:${two(t.minute)}');
+                  }
                 },
                 child: InputDecorator(
                   decoration: dec(
@@ -537,6 +579,7 @@ class _FS extends State<FormPage> {
             ],
           ),
         );
+
       case 'pick':
         return pad(
           Column(
@@ -550,23 +593,29 @@ class _FS extends State<FormPage> {
                     ChoiceChip(
                       label: Text(o),
                       selected: v[f.k] == o,
-                      onSelected: (_) => change(f.k, o),
+                      onSelected: (_) {
+                        _hideKb();
+                        change(f.k, o);
+                      },
                     ),
                 ],
               ),
             ],
           ),
         );
+
       case 'multi':
         final o = f.opts!(v);
         final sel = List<String>.from((v[f.k] ?? []) as List);
+
         return pad(
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               fieldHeading(lbl),
               if (o.isEmpty)
-                const Text('पहले ऊपर नाम भरें', style: TextStyle(fontSize: 13)),
+                const Text('पहले ऊपर नाम भरें',
+                    style: TextStyle(fontSize: 13)),
               Wrap(
                 spacing: 8,
                 children: [
@@ -575,6 +624,7 @@ class _FS extends State<FormPage> {
                       label: Text(x),
                       selected: sel.contains(x),
                       onSelected: (b) {
+                        _hideKb();
                         b ? sel.add(x) : sel.remove(x);
                         change(f.k, sel);
                       },
@@ -584,6 +634,7 @@ class _FS extends State<FormPage> {
             ],
           ),
         );
+
       case 'check':
         return pad(
           Container(
@@ -594,12 +645,17 @@ class _FS extends State<FormPage> {
                 f.label,
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
-              onChanged: (b) => change(f.k, b == true),
+              onChanged: (b) {
+                _hideKb();
+                change(f.k, b == true);
+              },
             ),
           ),
         );
+
       case 'photo':
         final p = '${v[f.k] ?? ''}';
+
         return pad(
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -641,12 +697,15 @@ class _FS extends State<FormPage> {
             ],
           ),
         );
+
       case 'people':
         final cnt = (v['cnt'] ?? 1) as int;
         final ps = (v['people'] ??= <dynamic>[]) as List;
+
         while (ps.length < cnt) {
           ps.add({'n': '', 'c': ''});
         }
+
         return pad(
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -659,7 +718,10 @@ class _FS extends State<FormPage> {
                   for (var i = 1; i <= 15; i++)
                     DropdownMenuItem(value: i, child: Text('$i')),
                 ],
-                onChanged: (x) => change('cnt', x ?? 1),
+                onChanged: (x) {
+                  _hideKb();
+                  change('cnt', x ?? 1);
+                },
               ),
               const SizedBox(height: 10),
               for (var i = 0; i < cnt; i++)
@@ -701,6 +763,7 @@ class _FS extends State<FormPage> {
           ),
         );
     }
+
     return const SizedBox();
   }
 
@@ -708,6 +771,7 @@ class _FS extends State<FormPage> {
   Widget build(BuildContext context) => Pg(
         widget.title,
         ListView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
           children: [
             for (final f in widget.fields)
@@ -722,7 +786,8 @@ class _FS extends State<FormPage> {
               ),
               onPressed: submit,
               icon: const Icon(Icons.visibility),
-              label: const Text('प्रीव्यू देखें', style: TextStyle(fontSize: 17)),
+              label:
+                  const Text('प्रीव्यू देखें', style: TextStyle(fontSize: 17)),
             ),
           ],
         ),
@@ -730,8 +795,9 @@ class _FS extends State<FormPage> {
 }
 
 // ---------------- Range filter + generic list ----------------
+
 class Rng {
-  int mode = 0;
+  int mode = 0; // 0 date, 1 month, 2 all
   DateTime date = DateTime.now();
   int m = DateTime.now().month, y = DateTime.now().year;
 
@@ -746,17 +812,24 @@ class Rng {
       : mode == 1
           ? 'माह: ${mon[m - 1]} $y'
           : 'सभी रिकॉर्ड';
-  String get tag => mode == 0 ? 'date' : mode == 1 ? 'month' : 'all';
+
+  String get tag => mode == 0
+      ? 'date'
+      : mode == 1
+          ? 'month'
+          : 'all';
 }
 
 class RngBar extends StatelessWidget {
   final Rng r;
   final VoidCallback onChange;
+
   const RngBar(this.r, this.onChange, {super.key});
 
   @override
   Widget build(BuildContext c) {
     const names = ['तारीख वार', 'मासिक', 'सभी'];
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
       child: Column(
@@ -789,6 +862,7 @@ class RngBar extends StatelessWidget {
                   firstDate: DateTime(2020),
                   lastDate: DateTime(2100),
                 );
+
                 if (d != null) {
                   r.date = d;
                   onChange();
@@ -832,14 +906,14 @@ class RngBar extends StatelessWidget {
 
 class RecordList extends StatefulWidget {
   final String title, pdfName;
-  final List> Function() source;
+  final List<Map<String, dynamic>> Function() source;
   final List<String> cols;
   final List<double> w;
   final List<String> Function(Map<String, dynamic> r, int i) row;
   final String Function(Map<String, dynamic> r) tTitle, tSub, tAmt;
   final Future<void> Function(Map<String, dynamic>? r) edit;
   final Future<void> Function(Map<String, dynamic> r) del;
-  final List<String> Function(List> recs)? notes;
+  final List<String> Function(List<Map<String, dynamic>> recs)? notes;
   final List<Widget> extras;
 
   const RecordList({
@@ -866,13 +940,17 @@ class RecordList extends StatefulWidget {
 class _RL extends State<RecordList> {
   final rng = Rng();
 
-  int cmp(Map a, Map b) =>
-      '${b['date']} ${b['time'] ?? ''} ${b['id']}'.compareTo('${a['date']} ${a['time'] ?? ''} ${a['id']}');
+  int cmp(Map a, Map b) => '${b['date']} ${b['time'] ?? ''} ${b['id']}'
+      .compareTo('${a['date']} ${a['time'] ?? ''} ${a['id']}');
 
-  Map<String, List>> groups(bool asc) {
-    final l = widget.source().where((r) => rng.ok(r['date'])).toList()..sort(cmp);
+  Map<String, List<Map<String, dynamic>>> groups(bool asc) {
+    final l = widget.source().where((r) => rng.ok(r['date'])).toList()
+      ..sort(cmp);
+
     final dates = l.map((r) => '${r['date']}').toSet().toList()..sort();
+
     if (!asc) dates.sort((a, b) => b.compareTo(a));
+
     return {
       for (final d in dates)
         d: (l.where((r) => '${r['date']}' == d).toList()
@@ -882,12 +960,14 @@ class _RL extends State<RecordList> {
 
   Future<void> pdf() async {
     final g = groups(true);
+
     if (g.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('कोई रिकॉर्ड नहीं मिला')),
       );
       return;
     }
+
     final secs = [
       for (final e in g.entries)
         Sec(
@@ -898,21 +978,26 @@ class _RL extends State<RecordList> {
           widget.notes?.call(e.value) ?? [],
         ),
     ];
+
     await guard(
       context,
-      () => sharePdf('${widget.pdfName}_${rng.tag}', widget.title, rng.sub, secs),
+      () => sharePdf(
+          '${widget.pdfName}_${rng.tag}', widget.title, rng.sub, secs),
     );
   }
 
   Future<void> csv() async {
     final g = groups(true);
     final rows = <List<String>>[];
+
     for (final e in g.entries) {
       for (var i = 0; i < e.value.length; i++) {
         rows.add(<String>[dShow(e.key), ...widget.row(e.value[i], i)]);
       }
     }
+
     if (rows.isEmpty) return;
+
     await guard(
       context,
       () => shareCsv(
@@ -926,6 +1011,7 @@ class _RL extends State<RecordList> {
   void detail(Map<String, dynamic> r) {
     final cells = widget.row(r, 0);
     final p = '${r['photo'] ?? r['r_photo'] ?? ''}';
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -938,7 +1024,8 @@ class _RL extends State<RecordList> {
             children: [
               Text(
                 '${dShow(r['date'])}  ${tShow(r['time'])}',
-                style: const TextStyle(color: kBrown, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                    color: kBrown, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
               for (var j = 1; j < widget.cols.length; j++)
@@ -953,11 +1040,7 @@ class _RL extends State<RecordList> {
               if (p.isNotEmpty && File(p).existsSync())
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Image.file(
-                    File(p),
-                    height: 160,
-                    cacheWidth: 600,
-                  ),
+                  child: Image.file(File(p), height: 160, cacheWidth: 600),
                 ),
               const SizedBox(height: 14),
               Row(
@@ -983,8 +1066,7 @@ class _RL extends State<RecordList> {
                           builder: (dc) => AlertDialog(
                             title: const Text('Delete करें?'),
                             content: const Text(
-                              'यह रिकॉर्ड हमेशा के लिए हट जाएगा।',
-                            ),
+                                'यह रिकॉर्ड हमेशा के लिए हट जाएगा।'),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(dc, false),
@@ -997,6 +1079,7 @@ class _RL extends State<RecordList> {
                             ],
                           ),
                         );
+
                         if (ok == true) {
                           await widget.del(r);
                           if (bc.mounted) Navigator.pop(bc);
@@ -1018,6 +1101,7 @@ class _RL extends State<RecordList> {
         listenable: S,
         builder: (_, __) {
           final g = groups(false);
+
           return Pg(
             widget.title,
             Column(
@@ -1031,7 +1115,8 @@ class _RL extends State<RecordList> {
                           children: [
                             for (final e in g.entries) ...[
                               Padding(
-                                padding: const EdgeInsets.fromLTRB(4, 12, 4, 6),
+                                padding:
+                                    const EdgeInsets.fromLTRB(4, 12, 4, 6),
                                 child: Text(
                                   '${dShow(e.key)}  (${e.value.length})',
                                   style: const TextStyle(
@@ -1060,7 +1145,8 @@ class _RL extends State<RecordList> {
                                                 Text(
                                                   widget.tTitle(r),
                                                   style: const TextStyle(
-                                                    fontWeight: FontWeight.w700,
+                                                    fontWeight:
+                                                        FontWeight.w700,
                                                     fontSize: 16,
                                                   ),
                                                 ),
