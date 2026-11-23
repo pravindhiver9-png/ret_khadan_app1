@@ -10,9 +10,14 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.FileOutputStream
 
-// Native PDF engine: Android ka text engine Hindi (matra / conjunct) sahi shape karta hai
-// aur PDF me text asli text (selectable) rehta hai, image nahi.
+// Native PDF engine: Hindi sahi shape hota hai aur PDF me text asli text (selectable) rehta hai.
 class MainActivity : FlutterActivity() {
+
+    // ---- PDF me jaane wale pixels (inhe kam karo to PDF chhota hoga) ----
+    private val BG_W = 540
+    private val BG_H = 764
+    private val ICON_PX = 128
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "ret/pdf")
@@ -29,12 +34,27 @@ class MainActivity : FlutterActivity() {
             }
     }
 
+    // Image ko shuru se hi chhota karke kholta hai (memory bhi bachti hai)
+    private fun small(assetKey: String, w: Int, h: Int): Bitmap {
+        val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        assets.open(assetKey).use { BitmapFactory.decodeStream(it, null, o) }
+        var s = 1
+        while (o.outWidth / (s * 2) >= w && o.outHeight / (s * 2) >= h) s *= 2
+        val opts = BitmapFactory.Options().apply { inSampleSize = s }
+        val big = assets.open(assetKey).use { BitmapFactory.decodeStream(it, null, opts) }!!
+        val out = Bitmap.createScaledBitmap(big, w, h, true)
+        if (out !== big) big.recycle()
+        return out
+    }
+
     private fun makePdf(a: Map<String, Any?>) {
         val loader = FlutterInjector.instance().flutterLoader()
         fun asset(p: String) = loader.getLookupKeyForAsset(p)
+
         val reg = Typeface.createFromAsset(assets, asset("assets/fonts/NotoSansDevanagari-Regular.ttf"))
         val bold = Typeface.createFromAsset(assets, asset("assets/fonts/NotoSansDevanagari-Bold.ttf"))
-        val bg = assets.open(asset("assets/images/pdf_bg.jpg")).use { BitmapFactory.decodeStream(it) }
+        val bg = small(asset("assets/images/pdf_bg.jpg"), BG_W, BG_H)
+        val icon = small(asset("assets/icon/app_icon.png"), ICON_PX, ICON_PX)
 
         fun tp(face: Typeface, size: Float, color: String) = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
             typeface = face; textSize = size; this.color = Color.parseColor(color)
@@ -46,7 +66,7 @@ class MainActivity : FlutterActivity() {
         val pTd = tp(reg, 9.5f, "#45413A")
         val pNote = tp(bold, 11f, "#45413A")
         val pPg = tp(reg, 9f, "#8B6B48")
-        val bgPaint = Paint(Paint.FILTER_BITMAP_FLAG)
+        val imgPaint = Paint(Paint.FILTER_BITMAP_FLAG)
         val thPaint = Paint().apply { color = Color.parseColor("#8B6B48") }
         val linePaint = Paint().apply { color = Color.parseColor("#C5A77D"); strokeWidth = 0.6f }
         val fillA = Paint().apply { color = Color.argb(215, 255, 255, 255) }
@@ -69,7 +89,9 @@ class MainActivity : FlutterActivity() {
             pageNo++
             page = doc.startPage(PdfDocument.PageInfo.Builder(W, H, pageNo).create())
             cv = page!!.canvas
-            cv!!.drawBitmap(bg, null, RectF(0f, 0f, W.toFloat(), H.toFloat()), bgPaint)
+            cv!!.drawBitmap(bg, null, RectF(0f, 0f, W.toFloat(), H.toFloat()), imgPaint)
+            // icon: header ke daayin taraf (size 36x36 point)
+            cv!!.drawBitmap(icon, null, RectF(L + CW - 36f, TOP - 24f, L + CW, TOP + 12f), imgPaint)
             cv!!.drawText(title, L, TOP, pTitle)
             cv!!.drawText(sub, L, TOP + 16f, pSub)
             cv!!.drawText(if (cont) "$heading (जारी)" else heading, L, TOP + 40f, pHead)
@@ -131,5 +153,7 @@ class MainActivity : FlutterActivity() {
         page?.let { doc.finishPage(it) }
         FileOutputStream(path).use { doc.writeTo(it) }
         doc.close()
+        bg.recycle()
+        icon.recycle()
     }
 }
