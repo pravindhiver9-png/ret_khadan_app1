@@ -13,9 +13,9 @@ import java.io.FileOutputStream
 // Native PDF engine: Hindi sahi shape hota hai aur PDF me text asli text (selectable) rehta hai.
 class MainActivity : FlutterActivity() {
 
-    // ---- PDF me jaane wale pixels (inhe kam karo to PDF chhota hoga) ----
-    private val BG_W = 540
-    private val BG_H = 764
+    // ---- PDF me jaane wale pixels (kam karo to PDF chhota, zyada karo to zoom me saaf) ----
+    private val BG_W = 900
+    private val BG_H = 1273
     private val ICON_PX = 128
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -47,13 +47,30 @@ class MainActivity : FlutterActivity() {
         return out
     }
 
+    // Rang ke last 2 bits hata deta hai: dikhne me farq nahi, par PDF bahut chhota ho jata hai
+    private fun quant(b: Bitmap): Bitmap {
+        val px = IntArray(b.width * b.height)
+        b.getPixels(px, 0, b.width, 0, 0, b.width, b.height)
+        for (i in px.indices) {
+            val p = px[i]
+            val r = ((p shr 16) and 0xFC) or 0x02
+            val g = ((p shr 8) and 0xFC) or 0x02
+            val bl = (p and 0xFC) or 0x02
+            px[i] = (0xFF shl 24) or (r shl 16) or (g shl 8) or bl
+        }
+        val out = Bitmap.createBitmap(b.width, b.height, Bitmap.Config.ARGB_8888)
+        out.setPixels(px, 0, b.width, 0, 0, b.width, b.height)
+        b.recycle()
+        return out
+    }
+
     private fun makePdf(a: Map<String, Any?>) {
         val loader = FlutterInjector.instance().flutterLoader()
         fun asset(p: String) = loader.getLookupKeyForAsset(p)
 
         val reg = Typeface.createFromAsset(assets, asset("assets/fonts/NotoSansDevanagari-Regular.ttf"))
         val bold = Typeface.createFromAsset(assets, asset("assets/fonts/NotoSansDevanagari-Bold.ttf"))
-        val bg = small(asset("assets/images/pdf_bg.jpg"), BG_W, BG_H)
+        val bg = quant(small(asset("assets/images/pdf_bg.jpg"), BG_W, BG_H))
         val icon = small(asset("assets/icon/app_icon.png"), ICON_PX, ICON_PX)
 
         fun tp(face: Typeface, size: Float, color: String) = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -90,10 +107,13 @@ class MainActivity : FlutterActivity() {
             page = doc.startPage(PdfDocument.PageInfo.Builder(W, H, pageNo).create())
             cv = page!!.canvas
             cv!!.drawBitmap(bg, null, RectF(0f, 0f, W.toFloat(), H.toFloat()), imgPaint)
-            // icon: header ke daayin taraf (size 36x36 point)
-            cv!!.drawBitmap(icon, null, RectF(L + CW - 36f, TOP - 24f, L + CW, TOP + 12f), imgPaint)
-            cv!!.drawText(title, L, TOP, pTitle)
-            cv!!.drawText(sub, L, TOP + 16f, pSub)
+            // icon: left side (38x38 point)
+            cv!!.drawBitmap(icon, null, RectF(L, TOP - 24f, L + 38f, TOP + 14f), imgPaint)
+            // title / subtitle icon ke right me
+            val tx = L + 48f
+            cv!!.drawText(title, tx, TOP - 4f, pTitle)
+            cv!!.drawText(sub, tx, TOP + 12f, pSub)
+            // heading (tarikh / naam) left se
             cv!!.drawText(if (cont) "$heading (जारी)" else heading, L, TOP + 40f, pHead)
             cv!!.drawText("पृष्ठ $pageNo", W / 2f - 15f, 815f, pPg)
             return TOP + 52f
