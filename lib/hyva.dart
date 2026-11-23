@@ -12,7 +12,19 @@ Future<void> askDailyRate(BuildContext ctx) async {
     barrierDismissible: false,
     builder: (dc) => AlertDialog(
       title: const Text('आज की लोडिंग दर'),
-      content: TextField(controller: c, keyboardType: TextInputType.number, decoration: dec('लोडिंग दर (₹)')),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          fieldHeading('लोडिंग दर (₹)'),
+          TextField(
+            controller: c,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            textInputAction: TextInputAction.done,
+            decoration: dec('दर दर्ज करें'),
+          ),
+        ],
+      ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(dc), child: const Text('बाद में')),
         FilledButton(
