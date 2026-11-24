@@ -464,7 +464,8 @@ class _OD extends State<OwnerDetail> {
   Widget build(BuildContext context) => ListenableBuilder(
         listenable: S,
         builder: (_, __) {
-          final all = [...(_byOwner()[widget.owner] ?? [])]..sort((a, b) => '${b['date']}${b['time']}'.compareTo('${a['date']}${a['time']}'));
+          final all = (_byOwner()[widget.owner] ?? []).map((e) => Map<String, dynamic>.from(e)).toList()
+            ..sort((a, b) => '${b['date']}${b['time']}'.compareTo('${a['date']}${b['time']}'));
           final vehs = ['सभी', ...{for (final r in all) '${r['vehicle']}'}];
           final balList = all.where((r) => r['status'] == 'Partial' || r['status'] == 'Balance').toList();
           final freeList = all.where((r) => r['status'] == 'Free').toList();
