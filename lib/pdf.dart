@@ -51,6 +51,7 @@ Future<String> generatePdfFile(String name, String title, String sub, List<Sec> 
     'title': headerTitle,
     'sub': headerSub,
     'margin': 16.0,
+    'margin': 16.0,
     'theme': {
       'bg': '#F3E9D7',
       'card': '#E3D1B3',
@@ -108,14 +109,29 @@ class _PdfPreviewPage extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               children: [
                 Container(
-                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: kAcc, width: 1.4),
                     boxShadow: const [BoxShadow(color: Color(0x22000000), blurRadius: 8, offset: Offset(0, 3))],
                   ),
-                  child: Column(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(13),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: Opacity(
+                            opacity: 0.14,
+                            child: Image.asset(
+                              'assets/images/pdf_bg.jpg',
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Image.asset('assets/images/app_bg.jpg', fit: BoxFit.cover),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
@@ -180,8 +196,12 @@ class _PdfPreviewPage extends StatelessWidget {
                       ],
                     ],
                   ),
-                ),
-              ],
+
+                        ),
+                      ],
+                    ),
+                  ),
+                ),              ],
             ),
           ),
           Container(
