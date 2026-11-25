@@ -28,6 +28,7 @@ jobs:
           mkdir -p $D
           cp native/MainActivity.kt $D/MainActivity.kt
           sed -i 's/android:label="[^"]*"/android:label="रेत खदान"/' android/app/src/main/AndroidManifest.xml
+          sed -i 's/android:launchMode="singleTop"/android:launchMode="singleTask"/' android/app/src/main/AndroidManifest.xml
 
       - name: compileSdk 36 force karo aur lint band karo
         run: |
