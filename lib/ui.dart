@@ -247,10 +247,17 @@ class _FS extends State<FormPage> {
   }
 
   Future<void> pickPhoto(String k, ImageSource s) async {
-    final x = await ImagePicker().pickImage(source: s, imageQuality: 70, maxWidth: 1600);
-    if (x == null) return;
-    final p = await S.keepPhoto(x.path);
-    change(k, p);
+    S.skipNextLock = true;
+    try {
+      final x = await ImagePicker().pickImage(source: s, imageQuality: 70, maxWidth: 1600);
+      if (x == null) return;
+      final p = await S.keepPhoto(x.path);
+      change(k, p);
+    } finally {
+      Future.delayed(const Duration(seconds: 2), () {
+        S.skipNextLock = false;
+      });
+    }
   }
 
   String _formatTyped(FD f, String raw) {
@@ -529,7 +536,7 @@ class _FS extends State<FormPage> {
 }
 
 class Rng {
-  int mode = 0;
+  int mode = 2;
   DateTime date = DateTime.now();
   int m = DateTime.now().month, y = DateTime.now().year;
   bool ok(dynamic k) {
@@ -615,6 +622,9 @@ class RecordList extends StatefulWidget {
   final Future<void> Function(Map<String, dynamic> r) del;
   final List<String> Function(List<Map<String, dynamic>> recs)? notes;
   final List<Widget> extras;
+  final int initialMode;
+  final DateTime? initialDate;
+  final void Function(BuildContext context, String dateKey, List<Map<String, dynamic>> dayRecs)? onDayTap;
   const RecordList({
     super.key,
     required this.title,
@@ -630,13 +640,23 @@ class RecordList extends StatefulWidget {
     required this.del,
     this.notes,
     this.extras = const [],
+    this.initialMode = 2,
+    this.initialDate,
+    this.onDayTap,
   });
   @override
   State<RecordList> createState() => _RL();
 }
 
 class _RL extends State<RecordList> {
-  final rng = Rng();
+  late final Rng rng;
+
+  @override
+  void initState() {
+    super.initState();
+    rng = Rng()..mode = widget.initialMode;
+    if (widget.initialDate != null) rng.date = widget.initialDate!;
+  }
 
   int cmp(Map a, Map b) => '${b['date']} ${b['time'] ?? ''} ${b['id']}'.compareTo('${a['date']} ${a['time'] ?? ''} ${a['id']}');
 
@@ -715,7 +735,31 @@ class _RL extends State<RecordList> {
                   },
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.picture_as_pdf),
+                  label: Text(S.tr('PDF / शेयर', 'PDF / Share')),
+                  onPressed: () async {
+                    Navigator.pop(bc);
+                    final sec = Sec(
+                      dShow(r['date']),
+                      widget.cols,
+                      widget.w,
+                      [widget.row(r, 0)],
+                      widget.notes?.call([r]) ?? [],
+                    );
+                    await openPdfPreview(
+                      context,
+                      name: '${widget.pdfName}_${r['id'] ?? 'entry'}',
+                      title: widget.title,
+                      sub: '${dShow(r['date'])} ${tShow(r['time'])}'.trim(),
+                      secs: [sec],
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: FilledButton.icon(
                   icon: const Icon(Icons.delete),
@@ -762,7 +806,24 @@ class _RL extends State<RecordList> {
                         for (final e in g.entries) ...[
                           Padding(
                             padding: const EdgeInsets.fromLTRB(4, 12, 4, 6),
-                            child: Text('${dShow(e.key)}  (${e.value.length})', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: kBrown)),
+                            child: InkWell(
+                              onTap: widget.onDayTap == null ? null : () => widget.onDayTap!(context, e.key, e.value),
+                              borderRadius: BorderRadius.circular(10),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text('${dShow(e.key)}  (${e.value.length})', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: kBrown)),
+                                    if (widget.onDayTap != null)
+                                      Row(mainAxisSize: MainAxisSize.min, children: [
+                                        Text(S.tr('उस दिन की सभी एंट्री', 'View Day List'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kBrown)),
+                                        const Icon(Icons.chevron_right, size: 18, color: kBrown),
+                                      ]),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
                           for (final r in e.value)
                             Padding(

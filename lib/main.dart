@@ -36,16 +36,35 @@ class LockGate extends StatefulWidget {
   State<LockGate> createState() => _LockGateState();
 }
 
-class _LockGateState extends State<LockGate> {
+class _LockGateState extends State<LockGate> with WidgetsBindingObserver {
   bool unlocked = false;
   final pinCtl = TextEditingController();
   final confirmCtl = TextEditingController();
   String? err;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      S.lastPauseAt = DateTime.now();
+    } else if (state == AppLifecycleState.resumed) {
+      if (S.skipNextLock) {
+        S.skipNextLock = false;
+        return;
+      }
+    }
+  }
+
   bool get isFirstTime => S.mpin.isEmpty;
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     pinCtl.dispose();
     confirmCtl.dispose();
     super.dispose();
@@ -167,20 +186,210 @@ class _LockGateState extends State<LockGate> {
   }
 }
 
+
+void showUniversalRecordDetail(BuildContext context, Map<String, dynamic> r) {
+  final kind = '${r['_k'] ?? (r.containsKey('qty') ? 'royalty' : r.containsKey('type') ? 'expense' : 'hyva')}';
+  final rows = <MapEntry<String, String>>[];
+  String headerTitle = '';
+  String pdfPrefix = kind;
+
+  if (kind == 'hyva') {
+    headerTitle = '${S.tr('हाइवा एंट्री विवरण', 'Hyva Entry Details')} · ${r['vehicle'] ?? ''}';
+    rows.addAll([
+      MapEntry(S.tr('दिनांक / समय', 'Date / Time'), '${dShow(r['date'])} ${tShow(r['time'])}'.trim()),
+      MapEntry(S.tr('गाड़ी नंबर', 'Vehicle No.'), '${r['vehicle'] ?? '-'}'),
+      MapEntry(S.tr('टायर', 'Tyre'), '${r['tyre'] ?? '-'}'),
+      MapEntry(S.tr('लोडिंग दर', 'Loading Rate'), rs(nv(r['rate']))),
+      MapEntry(S.tr('मालिक का नाम', 'Owner Name'), '${r['owner'] ?? '-'}'),
+      MapEntry(S.tr('ड्राइवर', 'Driver'), '${r['driver'] ?? '-'} (${r['mobile'] ?? '-'})'),
+      MapEntry(S.tr('कुल राशि', 'Final Amount'), rs(nv(r['amount']))),
+      MapEntry(S.tr('भुगतान माध्यम', 'Payment Mode'), '${r['mode'] ?? '-'}${'${r['onlineTo'] ?? ''}'.isNotEmpty ? ' (${r['onlineTo']})' : ''}'),
+      MapEntry(S.tr('भुगतान स्थिति', 'Payment Status'), '${r['status'] ?? '-'}'),
+      MapEntry(S.tr('प्राप्त राशि', 'Received'), rs(nv(r['received']))),
+      MapEntry(S.tr('बाकी राशि', 'Balance'), rs(nv(r['balance']))),
+      MapEntry(S.tr('भेजने वाला', 'Sender'), '${r['dalal'] ?? '-'}'),
+      if ('${r['note'] ?? ''}'.trim().isNotEmpty) MapEntry(S.tr('नोट', 'Note'), '${r['note']}'),
+    ]);
+  } else if (kind == 'royalty') {
+    headerTitle = '${S.tr('रॉयल्टी एंट्री विवरण', 'Royalty Entry Details')} · ${r['royaltyNo'] ?? r['serial'] ?? ''}';
+    rows.addAll([
+      MapEntry(S.tr('रॉयल्टी क्रमांक', 'Royalty Book No.'), '${r['royaltyNo'] ?? r['serial'] ?? '-'}'),
+      MapEntry(S.tr('दिनांक / समय', 'Date / Time'), '${dShow(r['date'])} ${tShow(r['time'])}'.trim()),
+      MapEntry(S.tr('खदान', 'Mine'), '${r['mine'] ?? '-'}'),
+      MapEntry(S.tr('गाड़ी / टायर', 'Vehicle / Tyre'), '${r['vehicle'] ?? '-'} (${r['tyre'] ?? '-'})'),
+      MapEntry(S.tr('मात्रा', 'Quantity'), '${r['qty'] ?? '-'} m³'),
+      MapEntry(S.tr('मालिक', 'Owner'), '${r['owner'] ?? '-'}'),
+      MapEntry(S.tr('ड्राइवर / मोबाइल', 'Driver / Mobile'), '${r['driver'] ?? '-'} / ${r['mobile'] ?? '-'}'),
+      MapEntry(S.tr('प्राप्तकर्ता', 'Receiver'), '${r['receiver'] ?? '-'}'),
+      MapEntry(S.tr('गंतव्य', 'Destination'), '${r['dest'] ?? '-'}'),
+      MapEntry(S.tr('रॉयल्टी काटने वाला', 'Issuer'), '${r['giver'] ?? '-'}'),
+      MapEntry(S.tr('रकम', 'Amount'), rs(nv(r['amount']))),
+    ]);
+  } else {
+    final et = ets.firstWhere((e) => e.key == r['type'], orElse: () => ets.last);
+    headerTitle = '${et.title} ${S.tr('खर्च विवरण', 'Expense Details')}';
+    pdfPrefix = 'kharch_${et.key}';
+    rows.add(MapEntry(S.tr('दिनांक / समय', 'Date / Time'), '${dShow(r['date'])} ${tShow(r['time'])}'.trim()));
+    if ('${r['jcbName'] ?? ''}'.isNotEmpty) rows.add(MapEntry('JCB', '${r['jcbName']}'));
+    if ('${r['kind'] ?? ''}'.isNotEmpty) rows.add(MapEntry(S.tr('किस लिए', 'Purpose'), '${r['kind']}'));
+    if ('${r['paidToRole'] ?? ''}'.isNotEmpty) rows.add(MapEntry(S.tr('किसको दिया', 'Paid To'), '${r['paidToRole']} ${r['paidToName'] ?? ''}'.trim()));
+    if ('${r['litre'] ?? ''}'.isNotEmpty) rows.add(MapEntry(S.tr('मात्रा (लीटर)', 'Litre'), '${r['litre']}'));
+    if ('${r['who'] ?? ''}'.isNotEmpty) rows.add(MapEntry(S.tr('लाने वाला', 'Brought By'), '${r['who']}'));
+    if ('${r['supplierName'] ?? ''}'.isNotEmpty) rows.add(MapEntry(S.tr('सप्लायर', 'Supplier'), '${r['supplierName']}'));
+    if ('${r['vehicle'] ?? ''}'.isNotEmpty) rows.add(MapEntry(S.tr('वाहन नंबर', 'Vehicle No.'), '${r['vehicle']}'));
+    if ('${r['trip'] ?? ''}'.isNotEmpty) rows.add(MapEntry(S.tr('ट्रिप', 'Trip'), '${r['trip']}'));
+    if ('${r['name'] ?? ''}'.isNotEmpty) rows.add(MapEntry(S.tr('नाम', 'Name'), '${r['name']}'));
+    if ('${r['village'] ?? ''}'.isNotEmpty) rows.add(MapEntry(S.tr('गाँव', 'Village'), '${r['village']}'));
+    if ('${r['post'] ?? ''}'.isNotEmpty) rows.add(MapEntry(S.tr('पद', 'Post'), '${r['post']}'));
+    if ('${r['market'] ?? ''}'.isNotEmpty) rows.add(MapEntry(S.tr('विवरण', 'Details'), '${r['market']}'));
+    rows.add(MapEntry(S.tr('राशि', 'Amount'), rs(nv(r['amount']))));
+    if (r['paid'] != null) rows.add(MapEntry(S.tr('भुगतान राशि', 'Paid'), rs(nv(r['paid']))));
+    if (r['balance'] != null) rows.add(MapEntry(S.tr('बाकी राशि', 'Balance'), rs(nv(r['balance']))));
+    if ('${r['payStatus'] ?? ''}'.isNotEmpty) rows.add(MapEntry(S.tr('स्थिति', 'Status'), '${r['payStatus']}'));
+    if ('${r['note'] ?? ''}'.isNotEmpty) rows.add(MapEntry(S.tr('नोट', 'Note'), '${r['note']}'));
+  }
+
+  final photoPath = '${r['photo'] ?? r['r_photo'] ?? ''}';
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: kBg,
+    builder: (bc) => SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(headerTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: kBrown)),
+            if ('${r['thekedarName'] ?? r['khadanName'] ?? ''}'.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text('${r['khadanName'] ?? ''} · ${S.tr('ठेकेदार', 'Contractor')}: ${r['thekedarName'] ?? ''}', style: const TextStyle(fontSize: 12, color: kBrown)),
+              ),
+            const Divider(color: kAcc),
+            for (final kv in rows)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3.5),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(width: 130, child: Text('${kv.key}:', style: const TextStyle(color: kBrown, fontWeight: FontWeight.w700, fontSize: 13.5))),
+                    Expanded(child: Text(kv.value, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600))),
+                  ],
+                ),
+              ),
+            if (photoPath.isNotEmpty && File(photoPath).existsSync())
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(File(photoPath), height: 160, cacheWidth: 600),
+                ),
+              ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.edit, size: 18),
+                    label: Text(S.tr('एडिट', 'Edit')),
+                    onPressed: () async {
+                      Navigator.pop(bc);
+                      final clean = Map<String, dynamic>.from(r)..remove('_k');
+                      if (kind == 'hyva') {
+                        await openHyva(context, clean);
+                      } else if (kind == 'royalty') {
+                        await openRoyalty(context, clean);
+                      } else {
+                        final et = ets.firstWhere((e) => e.key == clean['type'], orElse: () => ets.last);
+                        await openExpense(context, et, clean);
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.picture_as_pdf, size: 18),
+                    label: Text(S.tr('PDF / शेयर', 'PDF / Share')),
+                    onPressed: () async {
+                      Navigator.pop(bc);
+                      final sec = Sec(
+                        headerTitle,
+                        [S.tr('विवरण', 'Field'), S.tr('जानकारी', 'Value')],
+                        const [170, 320],
+                        [for (final kv in rows) [kv.key, kv.value]],
+                        [],
+                      );
+                      await openPdfPreview(
+                        context,
+                        name: '${pdfPrefix}_${r['id'] ?? 'detail'}',
+                        title: headerTitle,
+                        sub: dShow(r['date']),
+                        secs: [sec],
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(backgroundColor: kBrown),
+                    icon: const Icon(Icons.delete, size: 18),
+                    label: Text(S.tr('डिलीट', 'Delete')),
+                    onPressed: () async {
+                      final ok = await showDialog<bool>(
+                        context: bc,
+                        builder: (dc) => AlertDialog(
+                          title: Text(S.tr('डिलीट करें?', 'Delete record?')),
+                          content: Text(S.tr('यह रिकॉर्ड हमेशा के लिए हट जाएगा।', 'This record will be permanently removed.')),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(dc, false), child: Text(S.tr('नहीं', 'No'))),
+                            FilledButton(onPressed: () => Navigator.pop(dc, true), child: Text(S.tr('हाँ, हटाएँ', 'Yes, Delete'))),
+                          ],
+                        ),
+                      );
+                      if (ok == true) {
+                        await S.remove(kind, '${r['id']}');
+                        if (bc.mounted) Navigator.pop(bc);
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 class Home extends StatelessWidget {
   const Home({super.key});
 
-  Widget stat(IconData i, String l, String v) => Expanded(
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: neo(r: 20),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Icon(i, color: kBrown),
-            const SizedBox(height: 5),
-            Text(l, style: const TextStyle(color: kBrown, fontSize: 13)),
-            const SizedBox(height: 2),
-            FittedBox(fit: BoxFit.scaleDown, child: Text(v, style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w700))),
-          ]),
+  Widget stat(IconData i, String l, String v, {VoidCallback? onTap}) => Expanded(
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: neo(r: 20),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Icon(i, color: kBrown),
+                  if (onTap != null) const Icon(Icons.open_in_new, size: 15, color: kBrown),
+                ],
+              ),
+              const SizedBox(height: 5),
+              Text(l, style: const TextStyle(color: kBrown, fontSize: 13)),
+              const SizedBox(height: 2),
+              FittedBox(fit: BoxFit.scaleDown, child: Text(v, style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w700))),
+            ]),
+          ),
         ),
       );
 
@@ -271,15 +480,35 @@ class Home extends StatelessWidget {
                   Text(S.tr('आज का कारोबार', "Today's Business"), style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 10),
                   Row(children: [
-                    stat(Icons.local_shipping_outlined, S.tr('कुल हाइवा', 'Total Hyva'), '${hy.length}'),
+                    stat(
+                      Icons.local_shipping_outlined,
+                      S.tr('कुल हाइवा', 'Total Hyva'),
+                      '${hy.length}',
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => HyvaList(initialMode: 0, initialDate: now))),
+                    ),
                     const SizedBox(width: 12),
-                    stat(Icons.receipt_long_outlined, S.tr('कुल रॉयल्टी', 'Total Royalty'), rs(roT)),
+                    stat(
+                      Icons.receipt_long_outlined,
+                      S.tr('कुल रॉयल्टी', 'Total Royalty'),
+                      rs(roT),
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RoyaltyList(initialMode: 0, initialDate: now))),
+                    ),
                   ]),
                   const SizedBox(height: 12),
                   Row(children: [
-                    stat(Icons.account_balance_wallet_outlined, S.tr('कुल खर्च', 'Total Expense'), rs(exT)),
+                    stat(
+                      Icons.account_balance_wallet_outlined,
+                      S.tr('कुल खर्च', 'Total Expense'),
+                      rs(exT),
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AllExpensesList(initialMode: 0, initialDate: now))),
+                    ),
                     const SizedBox(width: 12),
-                    stat(Icons.payments_outlined, S.tr('शेष राशि', 'Balance'), rs(roT - exT)),
+                    stat(
+                      Icons.payments_outlined,
+                      S.tr('शेष राशि', 'Balance'),
+                      rs(roT - exT),
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TodayAllEntriesPage(dateKey: t))),
+                    ),
                   ]),
                   const SizedBox(height: 20),
                   Text(S.tr('मुख्य एंट्री', 'Main Entry'), style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
@@ -341,18 +570,24 @@ class Home extends StatelessWidget {
                               final subText = '${r['date'] == t ? S.tr('आज', 'Today') : dShow(r['date'])} · ${kind == 'hyva' ? S.tr('हाइवा', 'Hyva') : kind == 'royalty' ? '${S.tr('रॉयल्टी', 'Royalty')} ${r['qty']} m³' : S.tr('खर्च एंट्री', 'Expense')}';
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 8),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                                  decoration: neo(r: 16),
-                                  child: Row(children: [
-                                    Expanded(
-                                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                        Text(titleText, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                                        Text(subText, style: const TextStyle(color: kBrown, fontSize: 12)),
-                                      ]),
-                                    ),
-                                    Text(rs(nv(r['amount'])), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                                  ]),
+                                child: InkWell(
+                                  onTap: () => showUniversalRecordDetail(context, r),
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                                    decoration: neo(r: 16),
+                                    child: Row(children: [
+                                      Expanded(
+                                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                          Text(titleText, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                                          Text(subText, style: const TextStyle(color: kBrown, fontSize: 12)),
+                                        ]),
+                                      ),
+                                      Text(rs(nv(r['amount'])), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                                      const SizedBox(width: 4),
+                                      const Icon(Icons.chevron_right, size: 18, color: kBrown),
+                                    ]),
+                                  ),
                                 ),
                               );
                             },
@@ -374,6 +609,64 @@ class Home extends StatelessWidget {
                 ]),
               ),
             ]),
+          );
+        },
+      );
+}
+
+
+class TodayAllEntriesPage extends StatelessWidget {
+  final String dateKey;
+  const TodayAllEntriesPage({super.key, required this.dateKey});
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: S,
+        builder: (_, __) {
+          final items = <Map<String, dynamic>>[
+            for (final r in S.list('hyva').where((e) => e['date'] == dateKey)) {...r, '_k': 'hyva'},
+            for (final r in S.list('royalty').where((e) => e['date'] == dateKey)) {...r, '_k': 'royalty'},
+            for (final r in S.list('expense').where((e) => e['date'] == dateKey)) {...r, '_k': 'expense'},
+          ]..sort((a, b) => '${b['time'] ?? ''}${b['id']}'.compareTo('${a['time'] ?? ''}${a['id']}'));
+
+          return Pg(
+            '${dShow(dateKey)} · ${S.tr('सभी एंट्री', 'All Entries')} (${items.length})',
+            items.isEmpty
+                ? Center(child: Text(S.tr('आज कोई एंट्री नहीं है', 'No entries for today')))
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: items.length,
+                    itemBuilder: (_, idx) {
+                      final r = items[idx];
+                      final kind = r['_k'];
+                      final titleText = kind == 'expense'
+                          ? '${ets.firstWhere((e) => e.key == r['type'], orElse: () => ets.last).title} ${S.tr('खर्च', 'Exp')}'
+                          : '${r['vehicle'] ?? '-'}';
+                      final subText = '${tShow(r['time'])} · ${kind == 'hyva' ? S.tr('हाइवा', 'Hyva') : kind == 'royalty' ? '${S.tr('रॉयल्टी', 'Royalty')} ${r['qty']} m³' : S.tr('खर्च एंट्री', 'Expense')}';
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: InkWell(
+                          onTap: () => showUniversalRecordDetail(context, r),
+                          borderRadius: BorderRadius.circular(18),
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: neo(r: 18),
+                            child: Row(children: [
+                              Expanded(
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Text(titleText, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                                  Text(subText, style: const TextStyle(color: kBrown, fontSize: 12.5)),
+                                ]),
+                              ),
+                              Text(rs(nv(r['amount'])), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                              const SizedBox(width: 4),
+                              const Icon(Icons.chevron_right, size: 18, color: kBrown),
+                            ]),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
           );
         },
       );
@@ -483,6 +776,45 @@ class _SettingsPageState extends State<SettingsPage> {
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(S.tr('ठेकेदार सेव और सक्रिय किया गया', 'Contractor saved & activated'))));
   }
 
+  Future<void> _editThekedarDialog(Map<String, dynamic> tk) async {
+    final eName = TextEditingController(text: '${tk['name'] ?? ''}');
+    final eMob = TextEditingController(text: '${tk['mobile'] ?? ''}');
+    final eAddr = TextEditingController(text: '${tk['address'] ?? ''}');
+    final eKhadan = TextEditingController(text: '${tk['khadan'] ?? ''}');
+    await showDialog(
+      context: context,
+      builder: (dc) => AlertDialog(
+        title: Text(S.tr('ठेकेदार एडिट करें', 'Edit Contractor')),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            aboveBox(S.tr('ठेकेदार का नाम', 'Contractor Name'), TextField(controller: eName, textCapitalization: TextCapitalization.words, textInputAction: TextInputAction.next, decoration: dec()), req: true),
+            aboveBox(S.tr('मोबाइल नंबर', 'Mobile Number'), TextField(controller: eMob, keyboardType: TextInputType.phone, textInputAction: TextInputAction.next, decoration: dec())),
+            aboveBox(S.tr('पता (Address)', 'Address'), TextField(controller: eAddr, textCapitalization: TextCapitalization.sentences, textInputAction: TextInputAction.next, decoration: dec())),
+            aboveBox(S.tr('खदान का नाम', 'Khadan Name'), TextField(controller: eKhadan, textCapitalization: TextCapitalization.words, textInputAction: TextInputAction.done, decoration: dec()), req: true),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dc), child: Text(S.tr('रद्द करें', 'Cancel'))),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: kBrown),
+            onPressed: () async {
+              if (eName.text.trim().isEmpty || eKhadan.text.trim().isEmpty) return;
+              await S.saveThekedar({
+                'id': tk['id'],
+                'name': eName.text,
+                'mobile': eMob.text,
+                'address': eAddr.text,
+                'khadan': eKhadan.text,
+              }, setActive: S.activeThekedarId == '${tk['id']}');
+              if (dc.mounted) Navigator.pop(dc);
+            },
+            child: Text(S.tr('अपडेट करें', 'Update')),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _changeMpinDialog() async {
     final c1 = TextEditingController();
     final c2 = TextEditingController();
@@ -542,14 +874,52 @@ class _SettingsPageState extends State<SettingsPage> {
                     Text(S.tr('अभी कोई ठेकेदार नहीं जुड़ा है', 'No contractor added yet'), style: const TextStyle(fontSize: 13))
                   else
                     for (final tk in list)
-                      RadioListTile<String>(
-                        value: '${tk['id']}',
-                        groupValue: '${active?['id'] ?? ''}',
-                        title: Text('${tk['name']} · ${tk['khadan']}', style: const TextStyle(fontWeight: FontWeight.w700)),
-                        subtitle: Text('${tk['mobile'] ?? ''} · ${tk['address'] ?? ''}', style: const TextStyle(fontSize: 12)),
-                        onChanged: (val) {
-                          if (val != null) S.selectThekedar(val);
-                        },
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        decoration: BoxDecoration(
+                          color: '${active?['id'] ?? ''}' == '${tk['id']}' ? const Color(0xFFF3E9D7) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: RadioListTile<String>(
+                          value: '${tk['id']}',
+                          groupValue: '${active?['id'] ?? ''}',
+                          contentPadding: const EdgeInsets.only(left: 4, right: 4),
+                          title: Text('${tk['name']} · ${tk['khadan']}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
+                          subtitle: Text('${tk['mobile'] ?? ''} · ${tk['address'] ?? ''}', style: const TextStyle(fontSize: 12)),
+                          secondary: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                tooltip: S.tr('एडिट', 'Edit'),
+                                icon: const Icon(Icons.edit_outlined, size: 20, color: kBrown),
+                                onPressed: () => _editThekedarDialog(tk),
+                              ),
+                              IconButton(
+                                tooltip: S.tr('डिलीट', 'Delete'),
+                                icon: const Icon(Icons.delete_outline, size: 20, color: Colors.redAccent),
+                                onPressed: () async {
+                                  final ok = await showDialog<bool>(
+                                    context: context,
+                                    builder: (dc) => AlertDialog(
+                                      title: Text(S.tr('ठेकेदार हटाएँ?', 'Delete Contractor?')),
+                                      content: Text('${tk['name']} (${tk['khadan']}) ${S.tr('को सूची से हटाना है?', 'will be removed.')}'),
+                                      actions: [
+                                        TextButton(onPressed: () => Navigator.pop(dc, false), child: Text(S.tr('नहीं', 'No'))),
+                                        FilledButton(onPressed: () => Navigator.pop(dc, true), child: Text(S.tr('हाँ, हटाएँ', 'Yes, Delete'))),
+                                      ],
+                                    ),
+                                  );
+                                  if (ok == true) {
+                                    await S.removeThekedar('${tk['id']}');
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                          onChanged: (val) {
+                            if (val != null) S.selectThekedar(val);
+                          },
+                        ),
                       ),
                 ]),
               ),
@@ -613,7 +983,9 @@ class BackupPage extends StatelessWidget {
             S.tr('Restore (बैकअप फाइल चुनें)', 'Restore (Pick Backup File)'),
             Icons.download,
             () => guard(context, () async {
+              S.skipNextLock = true;
               final f = await FilePicker.platform.pickFiles(type: FileType.any);
+              Future.delayed(const Duration(seconds: 2), () => S.skipNextLock = false);
               if (f == null || f.files.single.path == null) return;
               final txt = await File(f.files.single.path!).readAsString();
               if (!context.mounted) return;

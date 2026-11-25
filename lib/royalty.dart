@@ -59,11 +59,15 @@ Future<void> openRoyalty(BuildContext ctx, [Map<String, dynamic>? old]) async {
 String _d(dynamic x) => '${x ?? ''}'.trim().isEmpty ? '-' : '$x';
 
 class RoyaltyList extends StatelessWidget {
-  const RoyaltyList({super.key});
+  final int initialMode;
+  final DateTime? initialDate;
+  const RoyaltyList({super.key, this.initialMode = 2, this.initialDate});
   @override
   Widget build(BuildContext context) => RecordList(
         title: S.tr('रॉयल्टी एंट्री लिस्ट', 'Royalty Entry List'),
         pdfName: 'royalty',
+        initialMode: initialMode,
+        initialDate: initialDate,
         source: () => S.list('royalty'),
         cols: [
           S.tr('रॉयल्टी क्र.', 'Royalty No.'),

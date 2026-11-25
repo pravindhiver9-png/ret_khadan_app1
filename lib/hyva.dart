@@ -272,11 +272,15 @@ List<String> hyvaNotes(List<Map<String, dynamic>> l) {
 }
 
 class HyvaList extends StatelessWidget {
-  const HyvaList({super.key});
+  final int initialMode;
+  final DateTime? initialDate;
+  const HyvaList({super.key, this.initialMode = 2, this.initialDate});
   @override
   Widget build(BuildContext context) => RecordList(
         title: S.tr('हाइवा एंट्री लिस्ट', 'Hyva Entry List'),
         pdfName: 'hyva',
+        initialMode: initialMode,
+        initialDate: initialDate,
         source: () => S.list('hyva'),
         cols: _cols(),
         w: _w,
@@ -287,6 +291,9 @@ class HyvaList extends StatelessWidget {
         tAmt: (r) => rs(nv(r['amount'])),
         edit: (r) => openHyva(context, r),
         del: (r) => S.remove('hyva', r['id']),
+        onDayTap: (ctx, dateKey, _) {
+          Navigator.push(ctx, MaterialPageRoute(builder: (_) => DayHyvaPage(dateKey: dateKey)));
+        },
         extras: [
           IconButton(
             tooltip: 'Owner Wise Statement',
@@ -294,6 +301,28 @@ class HyvaList extends StatelessWidget {
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OwnerPage())),
           ),
         ],
+      );
+}
+
+class DayHyvaPage extends StatelessWidget {
+  final String dateKey;
+  const DayHyvaPage({super.key, required this.dateKey});
+  @override
+  Widget build(BuildContext context) => RecordList(
+        title: '${dShow(dateKey)} · ${S.tr('हाइवा एंट्री', 'Hyva Entries')}',
+        pdfName: 'hyva_$dateKey',
+        initialMode: 0,
+        initialDate: dparse(dateKey),
+        source: () => S.list('hyva').where((r) => '${r['date']}' == dateKey).toList(),
+        cols: _cols(),
+        w: _w,
+        row: hyvaRow,
+        notes: hyvaNotes,
+        tTitle: (r) => '${r['vehicle']}  (${r['tyre'] ?? '-'})',
+        tSub: (r) => '${_n(r['owner'])} · ${S.tr('भेजने वाला', 'Sender')}: ${_n(r['dalal'])} · ${r['status']}${_bal(r) != '-' ? ' · ${S.tr('बाकी', 'Bal')} ${_bal(r)}' : ''}',
+        tAmt: (r) => rs(nv(r['amount'])),
+        edit: (r) => openHyva(context, r),
+        del: (r) => S.remove('hyva', r['id']),
       );
 }
 

@@ -1021,3 +1021,41 @@ class BesharamBal extends StatelessWidget {
     );
   }
 }
+
+class AllExpensesList extends StatelessWidget {
+  final int initialMode;
+  final DateTime? initialDate;
+  const AllExpensesList({super.key, this.initialMode = 2, this.initialDate});
+
+  ET _etOf(Map<String, dynamic> r) => ets.firstWhere((e) => e.key == r['type'], orElse: () => ets.last);
+
+  @override
+  Widget build(BuildContext context) => RecordList(
+        title: S.tr('सभी खर्च सूची', 'All Expenses List'),
+        pdfName: 'expense_all',
+        initialMode: initialMode,
+        initialDate: initialDate,
+        source: () => S.list('expense'),
+        cols: [S.tr('क्र.', '#'), S.tr('प्रकार', 'Type'), S.tr('विवरण', 'Details'), S.tr('समय', 'Time'), S.tr('राशि', 'Amount')],
+        w: const [24, 80, 175, 55, 65],
+        row: (r, i) {
+          final et = _etOf(r);
+          return ['${i + 1}', et.title, '${et.tt(r)} (${et.ts(r)})', _t(r), _a(r)];
+        },
+        notes: (l) => ['${S.tr('कुल खर्च', 'Total Expense')}: ${rs(l.fold<num>(0, (a, r) => a + nv(r['amount'])))}'],
+        tTitle: (r) {
+          final et = _etOf(r);
+          return '${et.title} · ${et.tt(r)}';
+        },
+        tSub: (r) => _etOf(r).ts(r),
+        tAmt: _a,
+        edit: (r) async {
+          if (r == null) {
+            await Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpenseHome()));
+          } else {
+            await openExpense(context, _etOf(r), r);
+          }
+        },
+        del: (r) => S.remove('expense', r['id']),
+      );
+}

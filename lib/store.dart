@@ -73,6 +73,8 @@ String tShow(dynamic t) {
 class Store extends ChangeNotifier {
   late SharedPreferences sp;
   Map<String, dynamic> d = {};
+  bool skipNextLock = false;
+  DateTime? lastPauseAt;
 
   bool get isEn => d['lang'] == 'en';
   String tr(String hi, String en) => isEn ? en : hi;
@@ -172,6 +174,15 @@ class Store extends ChangeNotifier {
 
   Future<void> selectThekedar(String id) async {
     d['activeThekedar'] = id;
+    await save();
+  }
+
+  Future<void> removeThekedar(String id) async {
+    final l = d['thekedars'] as List;
+    l.removeWhere((e) => '${e['id']}' == id);
+    if ('${d['activeThekedar'] ?? ''}' == id) {
+      d['activeThekedar'] = l.isNotEmpty ? '${l.first['id']}' : '';
+    }
     await save();
   }
 
