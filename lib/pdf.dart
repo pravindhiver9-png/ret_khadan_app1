@@ -21,23 +21,26 @@ class Sec {
 String buildPdfHeaderTitle(String fallbackTitle) {
   final tk = S.activeThekedar;
   final khadan = '${tk?['khadan'] ?? ''}'.trim();
-  final thekedar = '${tk?['name'] ?? ''}'.trim();
-  if (khadan.isNotEmpty && thekedar.isNotEmpty) {
-    return '$khadan  —  ${S.tr('ठेकेदार', 'Contractor')}: $thekedar';
+  const base = 'Ret Khadaan';
+  if (khadan.isNotEmpty) {
+    return '$base\n$khadan';
   }
-  if (khadan.isNotEmpty) return khadan;
-  if (thekedar.isNotEmpty) return '$fallbackTitle · ${S.tr('ठेकेदार', 'Contractor')}: $thekedar';
-  return fallbackTitle;
+  return '$base\n$fallbackTitle';
 }
 
 String buildPdfHeaderSub(String sub) {
   final tk = S.activeThekedar;
   final parts = <String>[];
-  if (sub.trim().isNotEmpty) parts.add(sub.trim());
+  final tName = '${tk?['name'] ?? ''}'.trim();
   final mob = '${tk?['mobile'] ?? ''}'.trim();
   final addr = '${tk?['address'] ?? ''}'.trim();
-  final extra = [if (mob.isNotEmpty) mob, if (addr.isNotEmpty) addr].join(' · ');
-  if (extra.isNotEmpty) parts.add(extra);
+  final tkLine = [
+    if (tName.isNotEmpty) '${S.tr('ठेकेदार', 'Contractor')}: $tName',
+    if (mob.isNotEmpty) mob,
+    if (addr.isNotEmpty) addr,
+  ].join(' · ');
+  if (tkLine.isNotEmpty) parts.add(tkLine);
+  if (sub.trim().isNotEmpty) parts.add(sub.trim());
   return parts.join('  |  ');
 }
 

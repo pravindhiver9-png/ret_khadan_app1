@@ -9,6 +9,7 @@ const monEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'O
 const wk = ['सोमवार', 'मंगलवार', 'बुधवार', 'गुरुवार', 'शुक्रवार', 'शनिवार', 'रविवार'];
 const wkEn = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const tyreSizes = ['10 Tyre', '12 Tyre', '14 Tyre', '16 Tyre'];
+const sandTypes = ['Medium', 'Fine Plaster', 'Fine Barik'];
 
 String capFirst(dynamic raw) {
   final s = '${raw ?? ''}'.trim();
@@ -270,10 +271,18 @@ class Store extends ChangeNotifier {
   }
 
   String tyreRateKey(String date, String tyre) => '$date|$tyre';
+  String sandRateKey(String date, String tyre, String sand) => '$date|$tyre|$sand';
 
-  String rateFor(String date, [String? tyre]) {
+  String rateFor(String date, [String? tyre, String? sand]) {
     final rates = d['rates'] as Map;
     final ty = (tyre ?? '').trim();
+    final sd = (sand ?? '').trim();
+    if (ty.isNotEmpty && sd.isNotEmpty) {
+      final sk = sandRateKey(date, ty, sd);
+      if (rates[sk] != null && '${rates[sk]}'.trim().isNotEmpty) return '${rates[sk]}';
+      final defSandMap = (metaMap('sandRates')[ty] as Map?) ?? {};
+      if (defSandMap[sd] != null && '${defSandMap[sd]}'.trim().isNotEmpty) return '${defSandMap[sd]}';
+    }
     if (ty.isNotEmpty) {
       final tk = tyreRateKey(date, ty);
       if (rates[tk] != null && '${rates[tk]}'.trim().isNotEmpty) return '${rates[tk]}';
@@ -283,14 +292,24 @@ class Store extends ChangeNotifier {
     return '${rates[date] ?? d['defRate'] ?? ''}';
   }
 
-  Future<void> setTyreRate(String date, String tyre, String rate, {bool saveDefault = true}) async {
+  Future<void> setTyreRate(String date, String tyre, String rate, {bool saveDefault = true, String? sand}) async {
     final clean = rate.trim();
     if (clean.isEmpty) return;
     final rates = d['rates'] as Map;
-    rates[tyreRateKey(date, tyre)] = clean;
-    if (saveDefault) {
-      metaMap('tyreRates')[tyre] = clean;
-      d['defRate'] = clean;
+    final sd = (sand ?? '').trim();
+    if (sd.isNotEmpty) {
+      rates[sandRateKey(date, tyre, sd)] = clean;
+      if (saveDefault) {
+        final sMap = ((metaMap('sandRates')[tyre] ??= <String, dynamic>{}) as Map);
+        sMap[sd] = clean;
+        d['defRate'] = clean;
+      }
+    } else {
+      rates[tyreRateKey(date, tyre)] = clean;
+      if (saveDefault) {
+        metaMap('tyreRates')[tyre] = clean;
+        d['defRate'] = clean;
+      }
     }
     await save();
   }

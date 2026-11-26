@@ -6,12 +6,15 @@ import 'ui.dart';
 Future<void> openTyreRateDialog(BuildContext ctx, {bool onlyIfUnset = false}) async {
   final today = dkey(DateTime.now());
   if (onlyIfUnset) {
-    final anySet = tyreSizes.any((t) => '${(S.d['rates'] as Map)[S.tyreRateKey(today, t)] ?? ''}'.trim().isNotEmpty);
+    final anySet = tyreSizes.any((t) => sandTypes.any((s) => S.rateFor(today, t, s).trim().isNotEmpty));
     if (anySet) return;
   }
 
-  final controllers = {
-    for (final t in tyreSizes) t: TextEditingController(text: S.rateFor(today, t)),
+  final controllers = <String, Map<String, TextEditingController>>{
+    for (final t in tyreSizes)
+      t: {
+        for (final s in sandTypes) s: TextEditingController(text: S.rateFor(today, t, s)),
+      },
   };
 
   await showDialog(
@@ -22,15 +25,50 @@ Future<void> openTyreRateDialog(BuildContext ctx, {bool onlyIfUnset = false}) as
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (final t in tyreSizes) ...[
-              aboveBox(
-                '$t ${S.tr('दर (₹)', 'Rate (₹)')}',
-                TextField(
-                  controller: controllers[t],
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  textInputAction: TextInputAction.next,
-                  decoration: dec(hint: '₹'),
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3E9D7),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0x668B6B48)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(t, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: kBrown)),
+                    const SizedBox(height: 8),
+                    aboveBox(
+                      '${S.tr('मीडियम दर (Medium Rate)', 'Medium Rate')} (₹)',
+                      TextField(
+                        controller: controllers[t]!['Medium'],
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        textInputAction: TextInputAction.next,
+                        decoration: dec(hint: '₹'),
+                      ),
+                    ),
+                    aboveBox(
+                      '${S.tr('फाइन प्लास्टर दर (Fine Plaster Rate)', 'Fine Plaster Rate')} (₹)',
+                      TextField(
+                        controller: controllers[t]!['Fine Plaster'],
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        textInputAction: TextInputAction.next,
+                        decoration: dec(hint: '₹'),
+                      ),
+                    ),
+                    aboveBox(
+                      '${S.tr('फाइन बारीक दर (Fine Barik Rate)', 'Fine Barik Rate')} (₹)',
+                      TextField(
+                        controller: controllers[t]!['Fine Barik'],
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        textInputAction: TextInputAction.next,
+                        decoration: dec(hint: '₹'),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -42,9 +80,11 @@ Future<void> openTyreRateDialog(BuildContext ctx, {bool onlyIfUnset = false}) as
         FilledButton(
           onPressed: () async {
             for (final t in tyreSizes) {
-              final val = controllers[t]!.text.trim();
-              if (val.isNotEmpty) {
-                await S.setTyreRate(today, t, val, saveDefault: true);
+              for (final s in sandTypes) {
+                final val = controllers[t]![s]!.text.trim();
+                if (val.isNotEmpty) {
+                  await S.setTyreRate(today, t, val, saveDefault: true, sand: s);
+                }
               }
             }
             if (dc.mounted) Navigator.pop(dc);
@@ -62,6 +102,7 @@ List<FD> hyvaFields() => [
       FD('date', S.tr('दिनांक', 'Date'), 'date', req: true),
       FD('time', S.tr('समय', 'Time'), 'time', req: true),
       FD('tyre', S.tr('टायर चुनें', 'Select Tyre'), 'pick', req: true, opts: (v) => tyreSizes),
+      FD('sandType', S.tr('रेत का प्रकार', 'Sand Type'), 'pick', req: true, opts: (v) => sandTypes),
       FD('rate', S.tr('लोडिंग दर (₹)', 'Loading Rate (₹)'), 'num'),
       FD('vehicle', S.tr('गाड़ी नंबर', 'Vehicle No.'), 'cap', req: true),
       FD('owner', S.tr('गाड़ी मालिक का नाम', 'Owner Name'), 'capWords', req: true),
@@ -95,11 +136,13 @@ Future<void> openHyva(BuildContext ctx, [Map<String, dynamic>? old]) async {
   if (isNew) {
     final t = dkey(DateTime.now());
     const defTyre = '12 Tyre';
-    final r = S.rateFor(t, defTyre);
+    const defSand = 'Medium';
+    final r = S.rateFor(t, defTyre, defSand);
     init.addAll({
       'date': t,
       'time': tnow(),
       'tyre': defTyre,
+      'sandType': defSand,
       'rate': r,
       'rate0': r,
       'status': 'Paid',
@@ -109,6 +152,7 @@ Future<void> openHyva(BuildContext ctx, [Map<String, dynamic>? old]) async {
   } else {
     final o = old!;
     init['tyre'] ??= '12 Tyre';
+    init['sandType'] ??= 'Medium';
     init['rate0'] = o['rate'];
     final lk = S.list('royalty').where((x) => x['hyvaId'] == o['id']).toList();
     if (lk.isNotEmpty) {
@@ -136,8 +180,8 @@ Future<void> openHyva(BuildContext ctx, [Map<String, dynamic>? old]) async {
         init: init,
         hook: (k, v, set) {
           vehHook(k, v, set);
-          if ((k == 'date' || k == 'tyre') && isNew) {
-            final newRate = S.rateFor('${v['date']}', '${v['tyre'] ?? ''}');
+          if ((k == 'date' || k == 'tyre' || k == 'sandType') && isNew) {
+            final newRate = S.rateFor('${v['date']}', '${v['tyre'] ?? ''}', '${v['sandType'] ?? ''}');
             set('rate', newRate);
             set('rate0', newRate);
           }
@@ -174,6 +218,7 @@ Future<String?> _saveHyva(BuildContext c, Map<String, dynamic> v) async {
     return S.tr('FREE का कारण Note में लिखें', 'Please enter reason in Note for FREE');
   }
   final tyre = '${v['tyre'] ?? '12 Tyre'}';
+  final sand = '${v['sandType'] ?? 'Medium'}';
   if ('${v['rate'] ?? ''}'.trim().isNotEmpty && nv(v['rate']) != nv(v['rate0'])) {
     final ch = await showDialog<String>(
       context: c,
@@ -188,13 +233,14 @@ Future<String?> _saveHyva(BuildContext c, Map<String, dynamic> v) async {
     );
     if (ch == null) return S.tr('लोडिंग दर का विकल्प चुनें', 'Choose loading rate option');
     if (ch == 'always') {
-      await S.setTyreRate('${v['date']}', tyre, '${v['rate']}', saveDefault: true);
+      await S.setTyreRate('${v['date']}', tyre, '${v['rate']}', saveDefault: true, sand: sand);
     }
   }
   final r = Map<String, dynamic>.from(v)..remove('rate0');
   final up = '${r['vehicle'] ?? ''}'.trim().toUpperCase();
   r['vehicle'] = up;
   r['tyre'] = tyre;
+  r['sandType'] = sand;
   r['owner'] = capWords(r['owner']);
   r['driver'] = capWords(r['driver']);
   r['dalal'] = capWords(r['dalal']);
@@ -239,28 +285,41 @@ String _bal(Map r) => (r['status'] == 'Partial' || r['status'] == 'Balance') ? r
 String _n(dynamic x) => '${x ?? ''}'.trim().isEmpty ? '-' : '$x';
 
 List<String> _cols() => [
-      S.tr('क्र.', '#'),
-      S.tr('गाड़ी / टायर', 'Vehicle / Tyre'),
+      S.tr('क्र.', 'No.'),
+      S.tr('गाड़ी नंबर', 'Vehicle Number'),
       S.tr('मालिक', 'Owner'),
       S.tr('ड्राइवर', 'Driver'),
-      S.tr('मोबाइल', 'Mobile'),
+      S.tr('मोबाइल नंबर', 'Mobile Number'),
+      S.tr('रेत का प्रकार', 'Sand Type'),
       S.tr('राशि', 'Amount'),
+      S.tr('रॉयल्टी राशि', 'Royalty Amount'),
       S.tr('भेजने वाला', 'Sender'),
       S.tr('स्थिति', 'Status'),
-      S.tr('बाकी', 'Balance'),
+      S.tr('नोट', 'Note'),
     ];
-const _w = <double>[24, 72, 60, 54, 56, 44, 48, 38, 44];
+const _w = <double>[24, 68, 52, 50, 54, 52, 42, 42, 46, 36, 46];
+
+String _royAmtOf(Map<String, dynamic> r) {
+  if (r['roy'] == true && '${r['r_amount'] ?? ''}'.trim().isNotEmpty) {
+    return rs(nv(r['r_amount']));
+  }
+  final lk = S.list('royalty').where((x) => x['hyvaId'] == r['id']).toList();
+  if (lk.isNotEmpty) return rs(nv(lk.first['amount']));
+  return '-';
+}
 
 List<String> hyvaRow(Map<String, dynamic> r, int i) => [
       '${i + 1}',
-      '${r['vehicle']}\n${r['tyre'] ?? ''}',
+      '${r['vehicle'] ?? '-'}',
       _n(r['owner']),
       _n(r['driver']),
       _n(r['mobile']),
+      _n(r['sandType'] ?? 'Medium'),
       rs(nv(r['amount'])),
+      _royAmtOf(r),
       _n(r['dalal']),
-      '${r['status']}',
-      _bal(r),
+      '${r['status'] ?? '-'}',
+      _n(r['note']),
     ];
 
 List<String> hyvaNotes(List<Map<String, dynamic>> l) {

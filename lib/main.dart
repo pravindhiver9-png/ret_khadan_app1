@@ -199,6 +199,7 @@ void showUniversalRecordDetail(BuildContext context, Map<String, dynamic> r) {
       MapEntry(S.tr('दिनांक / समय', 'Date / Time'), '${dShow(r['date'])} ${tShow(r['time'])}'.trim()),
       MapEntry(S.tr('गाड़ी नंबर', 'Vehicle No.'), '${r['vehicle'] ?? '-'}'),
       MapEntry(S.tr('टायर', 'Tyre'), '${r['tyre'] ?? '-'}'),
+      MapEntry(S.tr('रेत का प्रकार', 'Sand Type'), '${r['sandType'] ?? 'Medium'}'),
       MapEntry(S.tr('लोडिंग दर', 'Loading Rate'), rs(nv(r['rate']))),
       MapEntry(S.tr('मालिक का नाम', 'Owner Name'), '${r['owner'] ?? '-'}'),
       MapEntry(S.tr('ड्राइवर', 'Driver'), '${r['driver'] ?? '-'} (${r['mobile'] ?? '-'})'),
